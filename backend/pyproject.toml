@@ -62,3 +62,11 @@ testpaths = ["apps"]
 [tool.coverage.run]
 source = ["apps"]
 omit = ["*/migrations/*", "*/tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+# Piso, não meta: é a cobertura que existe hoje (91%) com folga para o ruído de um arquivo
+# novo entrar antes dos seus testes. Um número aspiracional seria desligado na primeira
+# urgência — e aí o portão volta a não segurar nada, que era o estado anterior (GIT-001).
+# Sobe junto com a cobertura; nunca desce para o pipeline passar.
+fail_under = 89

@@ -17,6 +17,7 @@ import logging
 import random
 import time
 import urllib.request
+import zlib
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
@@ -26,6 +27,12 @@ logger = logging.getLogger(__name__)
 
 BACKOFF_BASE_SECONDS = 1.0
 GZIP_MAGIC = b"\x1f\x8b"
+
+# Falhas que querem dizer a mesma coisa para quem chama — o dado não veio — e por isso
+# merecem nova tentativa. `OSError` cobre URLError, HTTPError, TimeoutError e BadGzipFile;
+# `EOFError` e `zlib.error` são o gzip truncado ou corrompido, que não descendem de OSError
+# e escapariam do retry se não estivessem aqui.
+TRANSIENT_ERRORS = (OSError, EOFError, zlib.error, json.JSONDecodeError)
 
 
 class IBGEError(RuntimeError):
@@ -75,10 +82,9 @@ def _get_json(path: str) -> Any:
                 request, timeout=settings.IBGE_TIMEOUT_SECONDS
             ) as response:
                 return json.loads(_read_body(response))
-        # `OSError` cobre de uma vez URLError/HTTPError, TimeoutError e BadGzipFile — para
-        # quem chama são a mesma coisa: o dado não veio. `IBGEError` (resposta grande demais)
-        # é RuntimeError de propósito: repetir daria o mesmo resultado.
-        except (OSError, json.JSONDecodeError) as exc:
+        # `IBGEError` (resposta grande demais) fica de fora de propósito: é RuntimeError,
+        # não está em TRANSIENT_ERRORS, e repetir daria exatamente o mesmo resultado.
+        except TRANSIENT_ERRORS as exc:
             if attempt == attempts:
                 raise IBGEError(f"IBGE indisponível após {attempts} tentativas: {url}") from exc
             # Jitter para que várias tentativas não voltem todas no mesmo instante. Não é
