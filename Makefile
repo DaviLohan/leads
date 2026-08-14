@@ -33,7 +33,10 @@ makemigrations: ## Gera migrations
 test: test-backend test-frontend ## Roda todos os testes
 
 test-backend: ## pytest
-	$(BACKEND) pytest
+	# --ds explícito: o container exporta DJANGO_SETTINGS_MODULE=config.settings.development,
+	# e no pytest-django a variável de ambiente vence o pyproject.toml. Sem isto o teste roda
+	# com as settings erradas — falha o que deveria passar e esconde o que deveria falhar.
+	$(BACKEND) pytest --ds=config.settings.test
 
 test-frontend: ## vitest
 	$(FRONTEND) npm run test

@@ -130,8 +130,8 @@ Descrição detalhada em `ARCHITECTURE.md`. Resumo:
 | 1 | Arquitetura, ERD, ADRs, documentação | ✅ concluída |
 | 2 | Fundação: monorepo, Docker, Postgres/PostGIS, Redis, Celery, Django, Next.js, lint/test/CI | ✅ concluída |
 | 3 | Auth, Organization, Membership, RBAC, isolamento de tenant, auditoria | ✅ concluída |
-| 4 | Geografia: State, City, importador IBGE, PostGIS | próxima |
-| 5 | Companies: modelo completo + normalização | |
+| 4 | Geografia: State, City, importador IBGE, PostGIS | ✅ concluída |
+| 5 | Companies: modelo completo + normalização | próxima |
 | 6 | Deduplicação: `CompanyResolver` + testes robustos | |
 | 7 | Providers: abstração + Overpass + Mock | |
 | 8 | Search engine: Search, SearchJob, tasks, progresso, retries, rate limit | |

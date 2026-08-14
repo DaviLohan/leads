@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     # domínio (ver CLAUDE.md: um app nasce na etapa que o usa)
     "apps.core",
     "apps.accounts",
+    "apps.geography",
 ]
 
 MIDDLEWARE = [
@@ -228,6 +229,13 @@ LOGGING = {
 }
 
 # --- Providers externos (ADR-0003 / ADR-0004) --------------------------------
+
+IBGE_API_URL = env("IBGE_API_URL", "https://servicodados.ibge.gov.br/api/v1/localidades")
+IBGE_TIMEOUT_SECONDS = env_int("IBGE_TIMEOUT_SECONDS", 30)
+IBGE_MAX_ATTEMPTS = env_int("IBGE_MAX_ATTEMPTS", 3)
+# A lista de municípios tem ~1 MB comprimida; 32 MB é folga larga e ainda assim um teto.
+IBGE_MAX_BYTES = env_int("IBGE_MAX_BYTES", 32_000_000)
+IBGE_USER_AGENT = env("IBGE_USER_AGENT", "leads-radar/0.1")
 
 OVERPASS_API_URL = env("OVERPASS_API_URL", "https://overpass-api.de/api/interpreter")
 OVERPASS_RATE_LIMIT_PER_SECOND = env_int("OVERPASS_RATE_LIMIT_PER_SECOND", 1)

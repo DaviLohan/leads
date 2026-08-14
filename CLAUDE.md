@@ -37,7 +37,7 @@ mora na view.
 |---|---|---|
 | `core` | BaseModel, TenantModel, uuid7, AuditLog, health, middleware, logging, viewsets, audit | ✅ |
 | `accounts` | User, Organization, Membership, Invitation, RBAC, autenticação por sessão | ✅ |
-| `geography` | State, City (IBGE), geometrias | Etapa 4 |
+| `geography` | State, City (IBGE), geometrias | ✅ |
 | `companies` | Company + endereços, contatos, sites, fontes, categorias, dedup | Etapas 5–6 |
 | `providers` | BaseProvider, Overpass, Mock, credenciais, uso, rate limit | Etapa 7 |
 | `discovery` | Search, SearchJob, particionamento, tasks | Etapa 8 |
@@ -134,9 +134,16 @@ Segurança → Integridade dos dados → Manutenibilidade → Clareza → Testab
 
 ## Estado atual
 
-Etapas 1, 2 e 3 concluídas: arquitetura, fundação, autenticação, organizações, RBAC e
-isolamento de tenant. Próxima: **Etapa 4 — geografia (State, City, importador IBGE, PostGIS)**.
+Etapas 1 a 4 concluídas: arquitetura, fundação, autenticação, organizações, RBAC, isolamento
+de tenant e geografia. Próxima: **Etapa 5 — companies (modelo completo + normalização)**.
 Roadmap completo em `docs/PROJECT_PLAN.md`.
 
 Não existe cadastro público: a primeira organização nasce de
 `python manage.py create_organization`, e os demais usuários entram por convite.
+
+A base geográfica não vem do `seed`: rode `python manage.py import_ibge` (27 estados,
+5.571 municípios). É idempotente — reimportar atualiza nomes e não duplica. Sem rede, use
+`--file` com um JSON `{"estados": [...], "municipios": [...]}`.
+
+`City.centroid` está nulo de propósito até a Etapa 8, quando o particionamento geográfico
+das buscas passar a precisar dele. `City.boundary` não existe.

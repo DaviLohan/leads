@@ -17,7 +17,8 @@ api_v1: list[URLPattern | URLResolver] = [
     # O include abaixo usa o namespace "v1", então a rota do schema é "v1:schema".
     path("docs/", SpectacularSwaggerView.as_view(url_name="v1:schema"), name="docs"),
     path("", include("apps.accounts.urls")),
-    # Os demais módulos de domínio entram aqui a partir da Etapa 4.
+    path("", include("apps.geography.urls")),
+    # Os demais módulos de domínio entram aqui a partir da Etapa 5.
 ]
 
 urlpatterns = [
