@@ -72,18 +72,20 @@ services:
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
+    # Sem isto, um worker que morreu continua aparecendo como "up" — e a fila entope em
+    # silêncio, que é justamente onde a falha custa mais caro.
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
-  celery_beat:
-    build:
-      context: ./backend
-    container_name: leads_celery_beat
-    command: celery -A config beat --loglevel=info --schedule=/tmp/celerybeat-schedule
-    env_file: [.env]
-    depends_on:
-      db: { condition: service_healthy }
-      redis: { condition: service_healthy }
-    restart: unless-stopped
+  # `celery_beat` sai daqui até existir a primeira tarefa periódica. Não há `beat_schedule`
+  # em lugar nenhum do backend, então o processo subia ocioso — recurso gasto para nada e
+  # um serviço a mais para o operador achar que precisa monitorar. Volta na etapa que criar
+  # trabalho agendado (purga de provider efêmero, ADR-0004).
 
   frontend:
     build:

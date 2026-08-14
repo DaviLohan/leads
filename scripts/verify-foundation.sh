@@ -16,8 +16,11 @@ etapa "Subindo os serviços"
 docker compose up -d --build
 
 etapa "Aguardando os health checks"
-# celery_beat não tem healthcheck (não expõe porta); os demais precisam ficar healthy.
-for servico in db redis backend; do
+for servico in db redis backend celery_worker; do
+  # Zerar a cada serviço é obrigatório: sem isto, um serviço que nunca aparece no
+  # `docker compose ps` herda o "healthy" do serviço anterior e o script aprova o que
+  # não subiu. Falso positivo em script de verificação é o pior tipo de defeito.
+  estado=""
   for _ in $(seq 1 60); do
     estado=$(docker compose ps --format '{{.Service}} {{.Health}}' | awk -v s="$servico" '$1==s{print $2}')
     [ "$estado" = "healthy" ] && break

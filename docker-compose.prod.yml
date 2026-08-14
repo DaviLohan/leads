@@ -29,13 +29,7 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
 
-  celery_beat:
-    build:
-      context: ./backend
-      args:
-        INSTALL_DEV: "false"
-    environment:
-      DJANGO_SETTINGS_MODULE: config.settings.production
+  # `celery_beat` volta junto com a primeira tarefa periódica (ver docker-compose.yml).
 
   frontend:
     build:

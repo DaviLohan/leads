@@ -119,7 +119,11 @@ jobs:
   seguranca:
     runs-on: ubuntu-latest
     steps:
+      # Histórico completo: o gitleaks precisa varrer os commits, não só a árvore atual.
+      # Segredo que entrou e foi removido depois continua no histórico.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -138,9 +142,19 @@ jobs:
         working-directory: frontend
         run: npm audit --audit-level=high
 
+      # Mesma versão do .pre-commit-config.yaml: o desenvolvedor que rodou `pre-commit
+      # install` e o CI precisam reprovar exatamente as mesmas coisas.
+      - name: Segredos no histórico (gitleaks)
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz \
+            | tar -xz gitleaks
+          ./gitleaks detect --source . --no-banner --redact --exit-code 1
+
       - name: Nenhum .env versionado
         run: |
-          if git ls-files | grep -E '(^|/)\.env$|(^|/)\.env\.[^e]'; then
+          # Casa .env e qualquer .env.<sufixo>, e exclui só o .env.example — exatamente.
+          # A regex anterior ('\.env\.[^e]') deixava passar .env.encrypted e .env.eu-prod.
+          if git ls-files | grep -E '(^|/)\.env($|\.)' | grep -vE '(^|/)\.env\.example$'; then
             echo "Arquivo .env versionado. Segredo nunca entra no Git (SECURITY.md)."
             exit 1
           fi

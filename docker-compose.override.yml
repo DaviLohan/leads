@@ -20,10 +20,6 @@ services:
     volumes:
       - ./backend:/app
 
-  celery_beat:
-    volumes:
-      - ./backend:/app
-
   frontend:
     environment:
       WATCHPACK_POLLING: "true" # hot reload com volume montado no WSL

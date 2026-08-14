@@ -1,0 +1,19 @@
+# Configuração do gitleaks (usada pelo pre-commit e pelo CI).
+#
+# Mantém todas as regras padrão e abre exceção apenas para senhas fixas em arquivos de
+# teste — que não são segredo. É a mesma política já adotada para o bandit em
+# `backend/pyproject.toml` (`"*/tests/*" = ["S105", "S106"]`), aqui só repetida na
+# ferramenta que varre o histórico do Git.
+#
+# A exceção é por caminho, e restrita a teste. Código de aplicação continua varrido por
+# todas as regras.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Credenciais fixas de teste não são segredo (ver pyproject.toml: S105/S106)."
+paths = [
+  '''backend/apps/.*/tests/.*\.py$''',
+  '''backend/conftest\.py$''',
+]
