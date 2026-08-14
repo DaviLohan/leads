@@ -8,6 +8,7 @@ export type Pagina<T> = {
 };
 
 export type Estado = { id: string; uf: string; name: string; region: string };
+export type Categoria = { id: string; slug: string; name: string };
 export type Municipio = { id: string; name: string; uf: string; ibge_code: string };
 
 export type Achado = {

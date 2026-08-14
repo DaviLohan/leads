@@ -5,6 +5,7 @@ import type {
   Analise,
   Anotacao,
   Busca,
+  Categoria,
   Estado,
   Funil,
   Interacao,
@@ -33,6 +34,11 @@ export const listarEstados = () => apiFetch<Pagina<Estado>>("/geography/states/?
 
 export const listarMunicipios = (params: { uf?: string; q?: string } = {}) =>
   apiFetch<Pagina<Municipio>>(`/geography/cities/${qs({ ...params, page_size: 200 })}`);
+
+// --- Empresas ----------------------------------------------------------------
+
+export const listarCategorias = () =>
+  apiFetch<Pagina<Categoria>>("/companies/categories/?page_size=100");
 
 // --- Análise -----------------------------------------------------------------
 

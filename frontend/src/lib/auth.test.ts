@@ -22,3 +22,37 @@ describe("errorMessage", () => {
     expect(errorMessage(new Error("rede"), "Falhou.")).toBe("Falhou.");
   });
 });
+
+describe("errorMessage", () => {
+  it("lê a mensagem pronta do DRF", () => {
+    expect(errorMessage(new ApiError(403, { detail: "Sem permissão." }))).toBe("Sem permissão.");
+  });
+
+  it("lê erro de campo simples", () => {
+    expect(errorMessage(new ApiError(400, { email: ["E-mail inválido."] }))).toBe(
+      "E-mail inválido.",
+    );
+  });
+
+  it("lê erro aninhado de campo de lista", () => {
+    // O formato que o DRF usa quando o campo é ListField — e que a versão anterior desta
+    // função não lia, mostrando "não foi possível" no lugar do motivo real.
+    expect(
+      errorMessage(new ApiError(400, { category_ids: { 0: ["Deve ser um UUID válido."] } })),
+    ).toBe("Deve ser um UUID válido.");
+  });
+
+  it("cai no texto genérico quando não há nada legível", () => {
+    expect(errorMessage(new ApiError(500, {}), "Falhou.")).toBe("Falhou.");
+    expect(errorMessage(new Error("rede"), "Falhou.")).toBe("Falhou.");
+  });
+});
+
+describe("errorMessage não vaza resposta do servidor", () => {
+  it("ignora corpo que não é JSON", () => {
+    // 500 costuma vir com a página de erro do servidor. Mostrá-la despejaria HTML ou
+    // traceback na tela.
+    const html = "<!DOCTYPE html><h1>Server Error (500)</h1>";
+    expect(errorMessage(new ApiError(500, html), "Falhou.")).toBe("Falhou.");
+  });
+});

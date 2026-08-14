@@ -9,24 +9,12 @@ import {
   criarBusca,
   jobsDaBusca,
   listarBuscas,
+  listarCategorias,
   listarEstados,
   prever,
   type Criterios,
 } from "@/lib/recursos";
-import type { Busca, Estado, JobDeBusca } from "@/lib/tipos";
-
-// As categorias vêm do seed do backend. Mostrar o slug seria expor o modelo de dados a quem
-// só quer escolher "Dentistas".
-const CATEGORIAS = [
-  ["dentistas", "Dentistas"],
-  ["padarias", "Padarias"],
-  ["restaurantes", "Restaurantes"],
-  ["farmacias", "Farmácias"],
-  ["academias", "Academias"],
-  ["veterinarias", "Veterinárias"],
-  ["oficinas", "Oficinas mecânicas"],
-  ["saloes", "Salões de beleza"],
-] as const;
+import type { Busca, Categoria, Estado, JobDeBusca } from "@/lib/tipos";
 
 const SITUACAO: Record<
   Busca["status"],
@@ -43,6 +31,9 @@ const SITUACAO: Record<
 export default function Buscas() {
   const [buscas, setBuscas] = useState<Busca[]>([]);
   const [estados, setEstados] = useState<Estado[]>([]);
+  // O catálogo vem do banco. Fixá-lo aqui mandava slug onde a API espera UUID, e categoria
+  // nova nunca apareceria na tela.
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
 
@@ -52,9 +43,11 @@ export default function Buscas() {
       .catch((e) => setErro(errorMessage(e, "Não foi possível carregar as buscas.")));
 
   useEffect(() => {
-    Promise.all([recarregar(), listarEstados().then((p) => setEstados(p.results))]).finally(() =>
-      setCarregando(false),
-    );
+    Promise.all([
+      recarregar(),
+      listarEstados().then((p) => setEstados(p.results)),
+      listarCategorias().then((p) => setCategorias(p.results)),
+    ]).finally(() => setCarregando(false));
   }, []);
 
   // Enquanto houver busca rodando, atualiza sozinho. Sem isso, a pessoa fica apertando F5
@@ -75,7 +68,7 @@ export default function Buscas() {
 
       {erro && <Erro mensagem={erro} />}
 
-      <NovaBusca estados={estados} aoCriar={recarregar} />
+      <NovaBusca estados={estados} categorias={categorias} aoCriar={recarregar} />
 
       <h2 className="text-tinta-fraca mt-10 mb-3 text-xs font-semibold tracking-[0.1em] uppercase">
         Histórico
@@ -96,9 +89,17 @@ export default function Buscas() {
   );
 }
 
-function NovaBusca({ estados, aoCriar }: { estados: Estado[]; aoCriar: () => void }) {
+function NovaBusca({
+  estados,
+  categorias,
+  aoCriar,
+}: {
+  estados: Estado[];
+  categorias: Categoria[];
+  aoCriar: () => void;
+}) {
   const [uf, setUf] = useState("");
-  const [categoria, setCategoria] = useState<string>(CATEGORIAS[0][0]);
+  const [categoria, setCategoria] = useState<string>("");
   const [previsao, setPrevisao] = useState<number | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -109,10 +110,16 @@ function NovaBusca({ estados, aoCriar }: { estados: Estado[]; aoCriar: () => voi
     provider_slugs: ["osm-overpass"],
   });
 
+  // O catálogo chega depois da primeira renderização; a primeira categoria vira o padrão.
+  useEffect(() => {
+    const primeira = categorias[0];
+    if (!categoria && primeira) setCategoria(primeira.id);
+  }, [categorias, categoria]);
+
   // A previsão existe para que ninguém peça 399 municípios sem saber. Varrer o Paraná
   // inteiro contra o Overpass público leva horas e é abuso de serviço comunitário.
   useEffect(() => {
-    if (!uf) {
+    if (!uf || !categoria) {
       setPrevisao(null);
       return;
     }
@@ -126,7 +133,7 @@ function NovaBusca({ estados, aoCriar }: { estados: Estado[]; aoCriar: () => voi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uf, categoria]);
 
-  const nomeDaCategoria = CATEGORIAS.find(([slug]) => slug === categoria)?.[1] ?? categoria;
+  const nomeDaCategoria = categorias.find((c) => c.id === categoria)?.name ?? "";
 
   return (
     <form
@@ -168,15 +175,15 @@ function NovaBusca({ estados, aoCriar }: { estados: Estado[]; aoCriar: () => voi
             onChange={(e) => setCategoria(e.target.value)}
             className="border-linha bg-papel-alto rounded border px-2.5 py-1.5 text-sm"
           >
-            {CATEGORIAS.map(([slug, nome]) => (
-              <option key={slug} value={slug}>
-                {nome}
+            {categorias.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
               </option>
             ))}
           </select>
         </Campo>
 
-        <Botao type="submit" disabled={enviando || !uf}>
+        <Botao type="submit" disabled={enviando || !uf || !categoria}>
           {enviando ? "Criando…" : "Criar busca"}
         </Botao>
       </div>

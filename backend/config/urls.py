@@ -18,6 +18,7 @@ api_v1: list[URLPattern | URLResolver] = [
     path("docs/", SpectacularSwaggerView.as_view(url_name="v1:schema"), name="docs"),
     path("", include("apps.accounts.urls")),
     path("", include("apps.geography.urls")),
+    path("", include("apps.companies.urls")),
     path("", include("apps.discovery.urls")),
     path("", include("apps.analysis.urls")),
     path("", include("apps.crm.urls")),

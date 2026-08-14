@@ -66,13 +66,39 @@ export async function getMe(): Promise<Me | null> {
   }
 }
 
-/** Mensagem de erro legível a partir da resposta da API. */
+/**
+ * Mensagem de erro legível a partir da resposta da API.
+ *
+ * O DRF aninha em profundidade variável: `{"detail": "..."}`, `{"campo": ["..."]}` e, quando
+ * o campo é uma lista, `{"campo": {"0": ["..."]}}`. Ler só os dois primeiros formatos fazia
+ * o terceiro cair no texto genérico — e "não foi possível" esconde justamente o erro que
+ * diria o que corrigir.
+ */
 export function errorMessage(error: unknown, fallback = "Não foi possível concluir."): string {
-  if (error instanceof ApiError && error.body && typeof error.body === "object") {
-    const body = error.body as Record<string, unknown>;
-    if (typeof body.detail === "string") return body.detail;
-    const first = Object.values(body)[0];
-    if (Array.isArray(first) && typeof first[0] === "string") return first[0];
+  if (!(error instanceof ApiError)) return fallback;
+  // Corpo que é só uma string não é mensagem: é resposta não-JSON, tipicamente a página de
+  // erro do servidor. Mostrá-la despejaria HTML ou traceback na tela do usuário.
+  if (typeof error.body === "string") return fallback;
+  return primeiraMensagem(error.body) ?? fallback;
+}
+
+function primeiraMensagem(valor: unknown): string | null {
+  if (typeof valor === "string") return valor.trim() || null;
+  if (Array.isArray(valor)) {
+    for (const item of valor) {
+      const achado = primeiraMensagem(item);
+      if (achado) return achado;
+    }
+    return null;
   }
-  return fallback;
+  if (valor && typeof valor === "object") {
+    const corpo = valor as Record<string, unknown>;
+    // `detail` primeiro: é onde o DRF põe a mensagem que já vem pronta para humano.
+    if (typeof corpo.detail === "string") return corpo.detail;
+    for (const item of Object.values(corpo)) {
+      const achado = primeiraMensagem(item);
+      if (achado) return achado;
+    }
+  }
+  return null;
 }
