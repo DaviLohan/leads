@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "apps.geography",
     "apps.companies",
     "apps.providers",
+    "apps.discovery",
 ]
 
 MIDDLEWARE = [
@@ -231,6 +232,15 @@ LOGGING = {
 }
 
 # --- Providers externos (ADR-0003 / ADR-0004) --------------------------------
+
+# --- Descoberta (Etapa 8) ----------------------------------------------------
+
+# Teto de jobs por busca. Não é limitação técnica: é o que impede um clique em "Brasil
+# inteiro" de virar 5.571 requisições contra um serviço comunitário (ADR-0004). Uma UF
+# grande cabe (o Paraná tem 399 municípios); o país não, e isso é de propósito.
+DISCOVERY_MAX_JOBS_PER_SEARCH = env_int("DISCOVERY_MAX_JOBS_PER_SEARCH", 500)
+# Repetição só de falha da fonte, com backoff exponencial do Celery. Nunca infinito.
+DISCOVERY_JOB_MAX_RETRIES = env_int("DISCOVERY_JOB_MAX_RETRIES", 3)
 
 # --- Deduplicação (Etapa 6) --------------------------------------------------
 

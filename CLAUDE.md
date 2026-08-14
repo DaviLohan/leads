@@ -40,7 +40,7 @@ mora na view.
 | `geography` | State, City (IBGE), geometrias | ✅ |
 | `companies` | Company + endereços, contatos, sites, categorias, normalização | ✅ (dedup: Etapa 6) |
 | `providers` | BaseProvider, Overpass, Mock, CompanySource, uso, rate limit | ✅ |
-| `discovery` | Search, SearchJob, particionamento, tasks | Etapa 8 |
+| `discovery` | Search, SearchJob, SearchResult, particionamento, tasks | ✅ |
 | `analysis` | WebsiteScan/Finding, SSRF guard, Opportunity, Score | Etapas 9–11 |
 | `crm` | Lead, Pipeline, Stage, Interaction, Note, Task, Suppression | Etapa 12 |
 
@@ -104,6 +104,16 @@ make shell       # shell do Django
 make seed        # dados fictícios de desenvolvimento
 ```
 
+## Armadilhas do ambiente (já custaram tempo)
+
+- **Dependência nova exige `docker compose build`, não `pip install` no container.** O
+  Compose constrói **uma imagem por serviço**: instalar à mão no `backend` deixa o
+  `celery_worker` sem o pacote, e o erro só aparece quando algo roda na fila — etapas
+  depois. Depois de mexer em `requirements*.txt`: `docker compose build backend celery_worker`.
+- **App novo com tasks exige reiniciar o worker.** O `autodiscover_tasks` roda no boot; sem
+  restart o worker responde `Received unregistered task` e os jobs ficam parados em
+  `SCHEDULED`, sem erro visível no lado de quem disparou.
+
 ## Antes de uma mudança grande
 
 1. Reler este arquivo e o ADR relacionado.
@@ -111,6 +121,8 @@ make seed        # dados fictícios de desenvolvimento
 3. Checar impacto: segurança, tenancy, índices, N+1, custo de API externa.
 4. Implementar na camada certa (service, não view).
 5. `make test` e `make lint` — e reportar a saída real, nunca "deve funcionar".
+   Se mexeu em dependência, rode **também** no `celery_worker`: passar só no `backend`
+   esconde imagem desatualizada.
 6. Migration revisada (nada de editar banco à mão).
 7. Documentar decisão relevante em `docs/adr/`.
 
@@ -134,9 +146,9 @@ Segurança → Integridade dos dados → Manutenibilidade → Clareza → Testab
 
 ## Estado atual
 
-Etapas 1 a 7 concluídas: arquitetura, fundação, autenticação, organizações, RBAC, isolamento
-de tenant, geografia, empresas com normalização, deduplicação e as fontes de dados.
-Próxima: **Etapa 8 — motor de busca (Search, SearchJob, tasks, progresso)**.
+Etapas 1 a 8 concluídas: arquitetura, fundação, autenticação, organizações, RBAC, isolamento
+de tenant, geografia, empresas com normalização, deduplicação, fontes de dados e o motor de
+busca. Próxima: **Etapa 9 — análise de site (guard de SSRF primeiro, depois o scanner)**.
 Roadmap completo em `docs/PROJECT_PLAN.md`.
 
 Não existe cadastro público: a primeira organização nasce de
@@ -190,3 +202,24 @@ imperfeições do OSM de propósito (tag faltando, `contact:` misturado com a gr
 telefone inválido) — mock limpo demais esconde o bug que deveria pegar.
 
 Antes de usar qualquer fonte: `python manage.py seed_providers`.
+
+## Descoberta
+
+`Search` é a intenção; o particionamento a quebra em `SearchJob`, um por **cidade x
+categoria x fonte** — a menor unidade que dá para executar, repetir e reportar sozinha. Um
+504 em Cambé não pode obrigar a refazer o Paraná.
+
+`plan_search` **recusa antes de criar** o que passar de `DISCOVERY_MAX_JOBS_PER_SEARCH`.
+Não é limitação técnica: é o que impede um clique em "Brasil inteiro" de virar 5.571
+requisições contra um serviço comunitário (ADR-0004).
+
+`claim_job` usa `select_for_update`: é ele, e não a fila, que garante que a mesma task
+reentregue pelo broker (`acks_late` faz isso) execute uma vez só.
+
+Progresso e situação da busca são **derivados** dos jobs, nunca acumulados — contador
+incrementado por worker paralelo diverge, e a divergência vira busca eternamente "em
+andamento" com tudo pronto. Na listagem eles vêm de anotação, senão é N+1 numa tela que a
+interface consulta em laço.
+
+Antes de usar: `seed_providers` e as categorias do `seed_dev_data` (é o `provider_mapping`
+que traduz "Dentistas" para as tags de cada fonte).

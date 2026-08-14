@@ -31,6 +31,22 @@ from apps.providers.models import CompanySource, Provider, ProviderUsage
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class IngestionRecord:
+    """A decisão tomada sobre um resultado.
+
+    Existe para que `discovery` (Etapa 8) grave `SearchResult` sem repetir o laço de
+    ingestão. É dado devolvido, não callback: quem chama decide o que fazer com a lista, e
+    o pipeline não passa a executar código de terceiros no meio de uma transação.
+    """
+
+    external_id: str
+    match_type: str
+    company_id: object | None = None
+    score: float = 0.0
+    payload: dict = field(default_factory=dict)
+
+
 @dataclass
 class IngestionReport:
     """O que a varredura produziu. Vira progresso de `SearchJob` na Etapa 8."""
@@ -40,6 +56,7 @@ class IngestionReport:
     review: int = 0
     skipped: int = 0
     reasons: Counter = field(default_factory=Counter)
+    records: list[IngestionRecord] = field(default_factory=list)
 
     @property
     def total(self) -> int:
@@ -117,14 +134,31 @@ def _ingerir_um(
         _gravar_fonte(fonte.company, provider_row, bruto, candidato)
         relatorio.updated += 1
         relatorio.reasons["já conhecida por esta fonte"] += 1
+        relatorio.records.append(
+            IngestionRecord(
+                external_id=bruto.external_id,
+                match_type=MatchType.EXACT,
+                company_id=fonte.company_id,
+                score=1.0,
+                payload=_resumo(candidato),
+            )
+        )
         return
 
     decisao = resolve(candidato)
 
     if decisao.match_type == MatchType.POSSIBLE:
-        # Nunca funde sozinho. Sem `SearchResult` (Etapa 8) para guardar a pendência, o
-        # caminho honesto é registrar e não agir — inventar uma tabela de revisão agora
-        # seria adivinhar o formato que a Etapa 8 vai querer.
+        # Nunca funde sozinho: vira `SearchResult` com `match_type=POSSIBLE`, que é a fila
+        # de revisão humana (PROJECT_PLAN §4). Nenhuma empresa é criada nem alterada.
+        relatorio.records.append(
+            IngestionRecord(
+                external_id=bruto.external_id,
+                match_type=MatchType.POSSIBLE,
+                company_id=decisao.matched.pk,
+                score=decisao.score,
+                payload=_resumo(candidato),
+            )
+        )
         logger.info(
             "Correspondência possível, deixada para revisão humana",
             extra={
@@ -147,6 +181,38 @@ def _ingerir_um(
         relatorio.reasons[f"reconhecida por {decisao.signal}"] += 1
 
     _gravar_fonte(empresa, provider_row, bruto, candidato)
+    relatorio.records.append(
+        IngestionRecord(
+            external_id=bruto.external_id,
+            match_type=decisao.match_type,
+            company_id=empresa.pk,
+            score=decisao.score,
+            payload=_resumo(candidato),
+        )
+    )
+
+
+def _resumo(candidato: CompanyCandidate) -> dict:
+    """O DTO em JSON, sem a `City` — que é objeto de banco e não serializa.
+
+    Guardado em `SearchResult.normalized_payload`: é o que a fonte disse **depois de
+    normalizado**, útil para entender por que a dedup decidiu o que decidiu. O payload cru
+    fica em `CompanySource`, uma vez só por fonte.
+    """
+    return {
+        "name": candidato.name,
+        "normalized_name": candidato.normalized_name,
+        "tax_id": candidato.tax_id,
+        "domain": candidato.domain,
+        "phones": list(candidato.phones),
+        "emails": list(candidato.emails),
+        "street": candidato.street,
+        "number": candidato.number,
+        "district": candidato.district,
+        "postal_code": candidato.postal_code,
+        "latitude": candidato.latitude,
+        "longitude": candidato.longitude,
+    }
 
 
 def _valido(candidato: CompanyCandidate) -> bool:

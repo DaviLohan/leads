@@ -13,6 +13,19 @@ from django.core.management.base import BaseCommand, CommandError
 from apps.accounts.models import Membership, Organization, Role
 from apps.accounts.services import create_organization_with_owner
 
+# Categorias mínimas para o Radar funcionar, com a tradução para as tags do OSM. É o
+# `provider_mapping` (Etapa 5) que evita categoria hardcoded dentro do provider.
+CATEGORIAS = [
+    ("dentistas", "Dentistas", {"osm-overpass": {"amenity": "dentist"}}),
+    ("padarias", "Padarias", {"osm-overpass": {"shop": "bakery"}}),
+    ("restaurantes", "Restaurantes", {"osm-overpass": {"amenity": "restaurant"}}),
+    ("farmacias", "Farmácias", {"osm-overpass": {"amenity": "pharmacy"}}),
+    ("academias", "Academias", {"osm-overpass": {"leisure": "fitness_centre"}}),
+    ("veterinarias", "Veterinárias", {"osm-overpass": {"amenity": "veterinary"}}),
+    ("oficinas", "Oficinas mecânicas", {"osm-overpass": {"shop": "car_repair"}}),
+    ("saloes", "Salões de beleza", {"osm-overpass": {"shop": "hairdresser"}}),
+]
+
 DEV_ORG = "Organização de Desenvolvimento"
 DEV_EMAIL = "admin@leads.local"
 DEV_PASSWORD = "admin-dev-12345"  # noqa: S105 - credencial local, só com DEBUG=True
@@ -24,6 +37,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options) -> None:
         if not settings.DEBUG:
             raise CommandError("seed_dev_data só roda com DEBUG=True.")
+
+        self._categorias()
 
         if Organization.objects.filter(name=DEV_ORG).exists():
             self.stdout.write(f"Organização de desenvolvimento já existe. Login: {DEV_EMAIL}")
@@ -46,3 +61,13 @@ class Command(BaseCommand):
                 f"Papel: {Membership.objects.get(user=user).role} ({Role.OWNER.label})"
             )
         )
+
+    def _categorias(self) -> None:
+        """Idempotente: reexecutar não duplica nem sobrescreve o que foi ajustado à mão."""
+        from apps.companies.models import Category
+
+        for slug, nome, mapeamento in CATEGORIAS:
+            Category.objects.get_or_create(
+                slug=slug, defaults={"name": nome, "provider_mapping": mapeamento}
+            )
+        self.stdout.write(f"Categorias: {Category.objects.count()}")

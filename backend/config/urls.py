@@ -18,7 +18,8 @@ api_v1: list[URLPattern | URLResolver] = [
     path("docs/", SpectacularSwaggerView.as_view(url_name="v1:schema"), name="docs"),
     path("", include("apps.accounts.urls")),
     path("", include("apps.geography.urls")),
-    # Os demais módulos de domínio entram aqui a partir da Etapa 5.
+    path("", include("apps.discovery.urls")),
+    # Os demais módulos de domínio entram aqui a partir da Etapa 9.
 ]
 
 urlpatterns = [

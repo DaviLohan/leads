@@ -134,8 +134,8 @@ Descrição detalhada em `ARCHITECTURE.md`. Resumo:
 | 5 | Companies: modelo completo + normalização | ✅ concluída |
 | 6 | Deduplicação: `CompanyResolver` + testes robustos | ✅ concluída |
 | 7 | Providers: abstração + Overpass + Mock | ✅ concluída |
-| 8 | Search engine: Search, SearchJob, tasks, progresso, retries, rate limit | próxima |
-| 9 | Análise de site: guard de SSRF primeiro, depois o scanner | |
+| 8 | Search engine: Search, SearchJob, tasks, progresso, retries, rate limit | ✅ concluída |
+| 9 | Análise de site: guard de SSRF primeiro, depois o scanner | próxima |
 | 10 | Opportunity Engine | |
 | 11 | Scoring configurável com breakdown | |
 | 12 | CRM: Lead, Pipeline, Stage, Interaction | |
