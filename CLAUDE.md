@@ -134,9 +134,9 @@ Segurança → Integridade dos dados → Manutenibilidade → Clareza → Testab
 
 ## Estado atual
 
-Etapas 1 a 5 concluídas: arquitetura, fundação, autenticação, organizações, RBAC, isolamento
-de tenant, geografia e o modelo de empresas com normalização.
-Próxima: **Etapa 6 — deduplicação (`CompanyResolver`)**.
+Etapas 1 a 6 concluídas: arquitetura, fundação, autenticação, organizações, RBAC, isolamento
+de tenant, geografia, o modelo de empresas com normalização e a deduplicação.
+Próxima: **Etapa 7 — providers (abstração + Overpass + Mock)**.
 Roadmap completo em `docs/PROJECT_PLAN.md`.
 
 Não existe cadastro público: a primeira organização nasce de
@@ -157,3 +157,19 @@ unicidade em silêncio.
 
 `CompanySource` não fica em `companies`: tem FK para `Provider` e nasce no app `providers`,
 na Etapa 7 (ver nota em `docs/ERD.md`).
+
+## Deduplicação
+
+`companies/dedup.py` **só lê** e devolve uma `Resolution`; quem grava é o pipeline de
+ingestão (ADR-0003). Sinais em ordem de força: CNPJ (`EXACT`) → domínio → telefone+cidade →
+similaridade de nome. `POSSIBLE` **nunca** funde sozinho — a assimetria é deliberada: não
+fundir custa uma duplicata, fundir errado destrói dois históricos.
+
+O recorte por município antes de qualquer comparação de nome não é otimização, é o que
+torna o problema tratável (PROJECT_PLAN §3.5). Candidato sem cidade não entra na comparação
+por nome. Nunca compare nome em Python sobre a tabela: o cálculo é do Postgres, no índice GIN.
+
+Merge é `companies/services.merge_companies` — atômico, com `select_for_update` **antes** de
+validar (validar objeto em memória deixa fundir duas vezes), satélite colidente descartado
+em vez de derrubar a transação, e auditoria por `record_audit`. A duplicata não é apagada:
+vira `status=MERGED` com `merged_into` apontando para a sobrevivente.

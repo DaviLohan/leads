@@ -94,6 +94,18 @@ class Company(BaseModel):
     rating = models.DecimalField(_("nota"), max_digits=2, decimal_places=1, null=True, blank=True)
     review_count = models.PositiveIntegerField(_("avaliações"), default=0)
 
+    # `status=MERGED` sem isto é beco sem saída: quem chegar pela empresa antiga — um link
+    # salvo, um `external_id` de fonte, um relatório velho — não tem como achar a que
+    # sobreviveu. `SET_NULL` porque apagar a sobrevivente não pode arrastar o histórico.
+    merged_into = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="merged_from",
+        verbose_name=_("fundida em"),
+    )
+
     discovered_at = models.DateTimeField(_("descoberta em"), auto_now_add=True)
     last_seen_at = models.DateTimeField(_("vista pela última vez em"), null=True, blank=True)
     data_quality = models.JSONField(_("qualidade do dado"), default=dict, blank=True)
@@ -125,6 +137,12 @@ class Company(BaseModel):
             models.CheckConstraint(
                 condition=models.Q(rating__isnull=True) | models.Q(rating__gte=0, rating__lte=5),
                 name="company_rating_entre_0_e_5",
+            ),
+            # Empresa fundida em si mesma some do sistema: não aparece como ativa nem leva
+            # a lugar nenhum. Um merge com os argumentos trocados faria exatamente isso.
+            models.CheckConstraint(
+                condition=~models.Q(merged_into=models.F("id")),
+                name="company_nao_funde_em_si_mesma",
             ),
         ]
         indexes = [

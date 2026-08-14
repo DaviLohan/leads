@@ -231,6 +231,28 @@ LOGGING = {
 
 # --- Providers externos (ADR-0003 / ADR-0004) --------------------------------
 
+# --- Deduplicação (Etapa 6) --------------------------------------------------
+
+# Limiares de similaridade de nome (trigrama, 0 a 1), dentro do mesmo município.
+# Acima de PROBABLE o merge pode ser automático; entre os dois, vai para revisão humana;
+# abaixo de POSSIBLE nem é candidato. Os valores são conservadores de propósito: deixar de
+# fundir gera duplicata, que se junta depois — fundir errado destrói dois históricos.
+#
+# Medido no Postgres com pares reais, e é isto que sustenta os números escolhidos:
+#
+#   1.000  nome idêntico
+#   0.903  "Clínica X São José"      x "Clínica X Dr São José"   -> mesma, funde
+#   0.850  "Auto Peças Trevo"        x "Auto Peças Trevo ME"     -> mesma, funde
+#   0.783  "Supermercado Silva"      x "Supermercado Silva Ltda" -> quase certa, revisão
+#   0.676  "Clínica X São José"      x "Clínica X São Pedro"     -> ambíguo, revisão
+#   0.531  "Padaria Pão Quente Centro" x "... Zona Sul"          -> filiais, separadas
+#   0.360  "Farmácia Central"        x "Drogaria Central"        -> distintas
+#
+# Baixar PROBABLE pegaria o caso do sufixo jurídico automaticamente, mas só com dado de uso
+# na mão — não com palpite.
+DEDUP_NAME_SIMILARITY_PROBABLE = float(env("DEDUP_NAME_SIMILARITY_PROBABLE", "0.85"))
+DEDUP_NAME_SIMILARITY_POSSIBLE = float(env("DEDUP_NAME_SIMILARITY_POSSIBLE", "0.60"))
+
 IBGE_API_URL = env("IBGE_API_URL", "https://servicodados.ibge.gov.br/api/v1/localidades")
 IBGE_TIMEOUT_SECONDS = env_int("IBGE_TIMEOUT_SECONDS", 30)
 IBGE_MAX_ATTEMPTS = env_int("IBGE_MAX_ATTEMPTS", 3)

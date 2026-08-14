@@ -132,8 +132,8 @@ Descrição detalhada em `ARCHITECTURE.md`. Resumo:
 | 3 | Auth, Organization, Membership, RBAC, isolamento de tenant, auditoria | ✅ concluída |
 | 4 | Geografia: State, City, importador IBGE, PostGIS | ✅ concluída |
 | 5 | Companies: modelo completo + normalização | ✅ concluída |
-| 6 | Deduplicação: `CompanyResolver` + testes robustos | próxima |
-| 7 | Providers: abstração + Overpass + Mock | |
+| 6 | Deduplicação: `CompanyResolver` + testes robustos | ✅ concluída |
+| 7 | Providers: abstração + Overpass + Mock | próxima |
 | 8 | Search engine: Search, SearchJob, tasks, progresso, retries, rate limit | |
 | 9 | Análise de site: guard de SSRF primeiro, depois o scanner | |
 | 10 | Opportunity Engine | |
