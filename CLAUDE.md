@@ -113,6 +113,11 @@ make seed        # dados fictícios de desenvolvimento
 - **App novo com tasks exige reiniciar o worker.** O `autodiscover_tasks` roda no boot; sem
   restart o worker responde `Received unregistered task` e os jobs ficam parados em
   `SCHEDULED`, sem erro visível no lado de quem disparou.
+- **Não rode `npm run build` no container que serve `next dev`.** O build de produção
+  sobrescreve o `.next/` que o servidor de desenvolvimento está usando, e todas as rotas
+  passam a dar 500 com `ENOENT: vendor-chunks/next.js` — erro que não parece ter relação
+  nenhuma com a causa. Para verificar o build, pare o container antes, ou limpe o `.next` e
+  reinicie depois.
 
 ## Antes de uma mudança grande
 
@@ -146,10 +151,9 @@ Segurança → Integridade dos dados → Manutenibilidade → Clareza → Testab
 
 ## Estado atual
 
-Etapas 1 a 12 concluídas (de 14). **O backend está completo**: o fluxo de MVP roda de ponta
-a ponta — busca → empresas normalizadas e deduplicadas → análise de site → oportunidades →
-score com breakdown → lead → histórico → funil até venda fechada.
-Próxima: **Etapa 13 — frontend (Radar, Empresas, Detalhe, CRM, Buscas)**.
+Etapas 1 a 13 concluídas (de 14). O produto roda de ponta a ponta **pelo navegador**:
+login → Radar → busca → empresas analisadas → diagnóstico → prospecção → funil até venda
+fechada. Próxima: **Etapa 14 — hardening (segurança, performance, índices, N+1, throttling)**.
 Roadmap completo em `docs/PROJECT_PLAN.md`.
 
 Não existe cadastro público: a primeira organização nasce de
@@ -310,3 +314,21 @@ de alguém, que ligaria amanhã. E é por identificador normalizado, nunca por e
 pessoa reaparece com outro `company_id` na próxima busca.
 
 Antes de usar: `python manage.py seed_pipeline`.
+
+## Frontend
+
+A tese do design é a mesma do produto: **a ausência é o ativo**. O âmbar — única cor forte da
+paleta — marca o que *falta*; o que a empresa já tem fica cinza, quase invisível. É o inverso
+de toda barra de progresso, e é o que faz uma lista de trinta empresas ser lida num segundo.
+
+A **barra de lacunas** (`components/lacunas.tsx`) é o elemento assinatura: cinco segmentos por
+empresa — site, celular, contato, agenda, https. Cheio = falta. Hachurado = ainda não
+verificado, e **nunca** é pintado como lacuna: "não sei" não vira "não tem" na tela, pela
+mesma razão que não vira no backend.
+
+Fundo é papel de escritório (cinza-verde frio), não creme. Chivo nos títulos, Archivo no
+corpo, Azeret Mono em todo número — score, telefone, código IBGE e contagem alinham em
+coluna, que é como se varre uma lista de ligações com o olho.
+
+Português em toda parte, inclusive no código do frontend: os nomes das telas e componentes
+são os do domínio (`Casca`, `BarraDeLacunas`, `Regua`), como no backend.

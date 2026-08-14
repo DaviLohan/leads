@@ -1,79 +1,162 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { getMe, logout, ROLE_LABELS, type Me } from "@/lib/auth";
+import { Botao, Cabecalho, Casca, Erro, Vazio } from "@/components/casca";
+import { BarraDeLacunas, Score } from "@/components/lacunas";
+import { errorMessage } from "@/lib/auth";
+import { criarLead, lacunasDe, listarAnalises, listarPontuacoes } from "@/lib/recursos";
+import type { Analise, Pontuacao } from "@/lib/tipos";
 
 /**
- * Home autenticada da fundação. Prova, no browser, o ciclo completo de sessão via cookie
- * HTTPOnly (ADR-0005). O Dashboard de verdade entra na Etapa 13.
+ * O Radar: a folha de ligações.
+ *
+ * A tela abre com a frase que é a tese do produto — quantas empresas não têm site — porque
+ * é isso que o vendedor precisa saber antes de qualquer gráfico. Depois vem a lista, na
+ * ordem em que se trabalha: maior lacuna primeiro.
  */
-export default function Home() {
-  const router = useRouter();
-  const [me, setMe] = useState<Me | null>(null);
+export default function Radar() {
+  const [pontuacoes, setPontuacoes] = useState<Pontuacao[]>([]);
+  const [analises, setAnalises] = useState<Map<string, Analise>>(new Map());
   const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    getMe()
-      .then((dados) => {
-        if (dados === null) {
-          router.replace("/login");
-          return;
+    Promise.all([listarPontuacoes(), listarAnalises()])
+      .then(([p, a]) => {
+        setPontuacoes(p.results);
+        // A análise mais recente por empresa; a listagem já vem da mais nova para a mais velha.
+        const mapa = new Map<string, Analise>();
+        for (const analise of a.results) {
+          if (!mapa.has(analise.company)) mapa.set(analise.company, analise);
         }
-        setMe(dados);
+        setAnalises(mapa);
       })
+      .catch((e) => setErro(errorMessage(e, "Não foi possível carregar o radar.")))
       .finally(() => setCarregando(false));
-  }, [router]);
+  }, []);
 
-  async function sair() {
-    await logout();
-    router.replace("/login");
-  }
+  const semSite = pontuacoes.filter((p) =>
+    p.components.some((c) => c.rule_code === "sem_site" || c.rule_code === "site_fora_do_ar"),
+  ).length;
 
-  if (carregando || !me) {
-    return (
-      <main className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-neutral-500">Carregando…</p>
-      </main>
-    );
+  return (
+    <Casca>
+      <Cabecalho
+        titulo="Radar"
+        descricao="Quem tem menos presença digital aparece primeiro. É onde há mais para vender."
+      />
+
+      {erro && <Erro mensagem={erro} />}
+
+      {!carregando && pontuacoes.length > 0 && <Tese total={pontuacoes.length} semSite={semSite} />}
+
+      {carregando ? (
+        <p className="dados text-tinta-fraca text-sm">carregando…</p>
+      ) : pontuacoes.length === 0 ? (
+        <Vazio
+          titulo="Nenhuma empresa analisada ainda."
+          acao={
+            <Link href="/buscas">
+              <Botao>Criar a primeira busca</Botao>
+            </Link>
+          }
+        />
+      ) : (
+        <ol className="border-linha bg-papel-alto divide-linha divide-y rounded-lg border">
+          {pontuacoes.map((p) => (
+            <Linha key={p.id} pontuacao={p} analise={analises.get(p.company)} />
+          ))}
+        </ol>
+      )}
+    </Casca>
+  );
+}
+
+/**
+ * A tese, em números reais.
+ *
+ * Não é um cartão de KPI: é uma frase. O número grande é a ausência, porque a ausência é o
+ * produto — e ler "8 de 9 não têm site" diz mais que qualquer gráfico de rosca.
+ */
+function Tese({ total, semSite }: { total: number; semSite: number }) {
+  if (semSite === 0) return null;
+  return (
+    <p className="font-display text-tinta mb-8 max-w-2xl text-2xl leading-tight font-bold tracking-tight">
+      <span className="dados text-lacuna text-5xl font-semibold">{semSite}</span>{" "}
+      <span className="text-tinta-fraca font-medium">de {total} empresas analisadas</span> não têm
+      site oficial identificado.
+    </p>
+  );
+}
+
+function Linha({ pontuacao, analise }: { pontuacao: Pontuacao; analise?: Analise }) {
+  const [criando, setCriando] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [virouLead, setVirouLead] = useState(false);
+
+  const temSite = Boolean(analise);
+  const lacunas = lacunasDe(analise, temSite);
+
+  async function prospectar() {
+    setCriando(true);
+    setAviso(null);
+    try {
+      await criarLead(pontuacao.company);
+      setVirouLead(true);
+    } catch (e) {
+      setAviso(errorMessage(e, "Não foi possível criar o lead."));
+    } finally {
+      setCriando(false);
+    }
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-6 px-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Radar de Oportunidades</h1>
-        <p className="mt-2 text-neutral-500">Inteligência comercial e prospecção B2B no Brasil.</p>
+    <li className="hover:bg-papel/60 flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-4 transition-colors">
+      <div className="w-12 shrink-0 text-right">
+        <Score valor={pontuacao.value} />
       </div>
 
-      <dl className="grid gap-3 rounded-lg border border-neutral-200 p-4 text-sm dark:border-neutral-800">
-        <div className="flex justify-between gap-4">
-          <dt className="text-neutral-500">Usuário</dt>
-          <dd className="font-medium">{me.user.full_name || me.user.email}</dd>
-        </div>
-        <div className="flex justify-between gap-4">
-          <dt className="text-neutral-500">Organização</dt>
-          <dd className="font-medium">
-            {me.organization ? me.organization.name : "nenhuma organização ativa"}
-          </dd>
-        </div>
-        <div className="flex justify-between gap-4">
-          <dt className="text-neutral-500">Papel</dt>
-          <dd className="font-medium">{me.role ? (ROLE_LABELS[me.role] ?? me.role) : "—"}</dd>
-        </div>
-      </dl>
-
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-neutral-500">
-          Etapa 3 concluída. Geografia e empresas vêm a seguir.
-        </p>
-        <button
-          onClick={sair}
-          className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium dark:border-neutral-700"
+      <div className="min-w-0 flex-1">
+        <Link
+          href={`/empresas/${pontuacao.company}`}
+          className="text-tinta hover:text-acao font-medium"
         >
-          Sair
-        </button>
+          {pontuacao.company_name}
+        </Link>
+        <div className="mt-2">
+          <BarraDeLacunas lacunas={lacunas} rotulos />
+        </div>
       </div>
-    </main>
+
+      <div className="min-w-0 flex-1 basis-full sm:basis-auto">
+        <ul className="text-tinta-fraca space-y-0.5 text-xs">
+          {pontuacao.components.slice(0, 2).map((c) => (
+            <li key={c.rule_code} className="flex gap-2">
+              <span
+                className={`dados w-8 shrink-0 text-right ${c.points > 0 ? "text-lacuna" : ""}`}
+              >
+                {c.points > 0 ? `+${c.points}` : c.points}
+              </span>
+              <span className="truncate">{c.reason}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="shrink-0">
+        {virouLead ? (
+          <Link href="/crm" className="text-acao text-sm font-medium">
+            No funil →
+          </Link>
+        ) : (
+          <Botao variante="quieta" onClick={prospectar} disabled={criando}>
+            {criando ? "…" : "Prospectar"}
+          </Botao>
+        )}
+        {aviso && <p className="text-perdido mt-1 max-w-[16rem] text-xs">{aviso}</p>}
+      </div>
+    </li>
   );
 }
