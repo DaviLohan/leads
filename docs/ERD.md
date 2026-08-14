@@ -167,6 +167,11 @@ erDiagram
     }
 ```
 
+> **Onde cada tabela mora.** `CompanySource` está no diagrama de Empresas porque é dela que
+> a procedência fala, mas o app que a hospeda é `providers` (Etapa 7): ela tem FK para
+> `Provider`, e a ordem de dependência do `CLAUDE.md` é `companies` ← `providers` — companies
+> não pode depender de providers. O relacionamento acima continua válido; muda só o pacote.
+
 Pontos que valem constraint no banco:
 
 - `UniqueConstraint(provider, external_id)` em `CompanySource` — base da idempotência.

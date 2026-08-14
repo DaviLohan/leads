@@ -38,7 +38,7 @@ mora na view.
 | `core` | BaseModel, TenantModel, uuid7, AuditLog, health, middleware, logging, viewsets, audit | ✅ |
 | `accounts` | User, Organization, Membership, Invitation, RBAC, autenticação por sessão | ✅ |
 | `geography` | State, City (IBGE), geometrias | ✅ |
-| `companies` | Company + endereços, contatos, sites, fontes, categorias, dedup | Etapas 5–6 |
+| `companies` | Company + endereços, contatos, sites, categorias, normalização | ✅ (dedup: Etapa 6) |
 | `providers` | BaseProvider, Overpass, Mock, credenciais, uso, rate limit | Etapa 7 |
 | `discovery` | Search, SearchJob, particionamento, tasks | Etapa 8 |
 | `analysis` | WebsiteScan/Finding, SSRF guard, Opportunity, Score | Etapas 9–11 |
@@ -134,8 +134,9 @@ Segurança → Integridade dos dados → Manutenibilidade → Clareza → Testab
 
 ## Estado atual
 
-Etapas 1 a 4 concluídas: arquitetura, fundação, autenticação, organizações, RBAC, isolamento
-de tenant e geografia. Próxima: **Etapa 5 — companies (modelo completo + normalização)**.
+Etapas 1 a 5 concluídas: arquitetura, fundação, autenticação, organizações, RBAC, isolamento
+de tenant, geografia e o modelo de empresas com normalização.
+Próxima: **Etapa 6 — deduplicação (`CompanyResolver`)**.
 Roadmap completo em `docs/PROJECT_PLAN.md`.
 
 Não existe cadastro público: a primeira organização nasce de
@@ -147,3 +148,12 @@ A base geográfica não vem do `seed`: rode `python manage.py import_ibge` (27 e
 
 `City.centroid` está nulo de propósito até a Etapa 8, quando o particionamento geográfico
 das buscas passar a precisar dele. `City.boundary` não existe.
+
+Normalização de identificador mora em `apps/companies/normalization.py` (CNPJ, telefone
+E.164 e domínio) e em `apps/core/text.py` (`normalize_name`). Não escreva outra: `providers`
+(Etapa 7) e a supressão do `crm` (Etapa 12) importam dessas. Toda função devolve `None` para
+entrada inaproveitável — nunca o valor cru, que entraria meio normalizado e furaria a
+unicidade em silêncio.
+
+`CompanySource` não fica em `companies`: tem FK para `Provider` e nasce no app `providers`,
+na Etapa 7 (ver nota em `docs/ERD.md`).
