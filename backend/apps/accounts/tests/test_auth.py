@@ -265,3 +265,49 @@ class TestSenha:
             format="json",
         )
         assert response.status_code == 400
+
+    def test_uid_que_nao_e_uuid_nao_derruba_o_endpoint(self, api):
+        """Base64 válido decodificando para não-UUID precisa dar 400, nunca 500.
+
+        `filter(pk="abc")` levanta o `ValidationError` do Django — que não herda de
+        `ValueError` nem é tratado pelo handler do DRF. O endpoint é `AllowAny`, então
+        qualquer anônimo alcançaria o 500.
+        """
+        response = api.post(
+            "/api/v1/auth/password/reset/confirm/",
+            {
+                "uid": urlsafe_base64_encode(b"abc"),
+                "token": "token-forjado",
+                "new_password": "nova-senha-forte-789",
+            },
+            format="json",
+        )
+        assert response.status_code == 400
+
+    def test_uid_que_nao_e_base64_e_recusado(self, api):
+        response = api.post(
+            "/api/v1/auth/password/reset/confirm/",
+            {
+                "uid": "@@@",
+                "token": "token-forjado",
+                "new_password": "nova-senha-forte-789",
+            },
+            format="json",
+        )
+        assert response.status_code == 400
+
+    def test_uid_invalido_responde_igual_a_token_invalido(self, api, user):
+        """Mensagens distintas revelariam se o `uid` corresponde a alguém."""
+        base = {"token": "token-forjado", "new_password": "nova-senha-forte-789"}
+        real = api.post(
+            "/api/v1/auth/password/reset/confirm/",
+            {**base, "uid": urlsafe_base64_encode(force_bytes(user.pk))},
+            format="json",
+        )
+        malformado = api.post(
+            "/api/v1/auth/password/reset/confirm/",
+            {**base, "uid": urlsafe_base64_encode(b"abc")},
+            format="json",
+        )
+        assert real.status_code == malformado.status_code == 400
+        assert real.json() == malformado.json()

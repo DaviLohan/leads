@@ -7,11 +7,13 @@ Autenticação por sessão em cookie HTTPOnly + CSRF (ADR-0005) — nada de toke
 from __future__ import annotations
 
 import logging
+import uuid
 
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
@@ -246,11 +248,17 @@ class PasswordResetConfirmView(APIView):
 
     @staticmethod
     def _user_from_uid(uid: str) -> User | None:
+        """Usuário correspondente ao `uid` do link, ou `None`.
+
+        O UUID é validado antes da consulta: `filter(pk="abc")` levanta o
+        `ValidationError` do Django, que não herda de `ValueError` e escaparia daqui
+        como 500 num endpoint público. `uuid.UUID()` transforma isso em `ValueError`.
+        """
         try:
-            pk = force_str(urlsafe_base64_decode(uid))
-            return User.objects.filter(pk=pk, is_active=True).first()
-        except (ValueError, TypeError, User.DoesNotExist):
+            pk = uuid.UUID(force_str(urlsafe_base64_decode(uid)))
+        except (ValueError, TypeError):
             return None
+        return User.objects.filter(pk=pk, is_active=True).first()
 
 
 @extend_schema(request=sz.InvitationAcceptSerializer, responses={204: None})
@@ -286,7 +294,9 @@ class MemberViewSet(TenantViewSet):
     http_method_names = ["get", "patch", "delete", "head", "options"]
 
     def perform_update(self, serializer):
-        membership = self.get_object()
+        # A instância é a do serializer, não um segundo `get_object()`: o service altera
+        # este mesmo objeto, então a resposta do DRF sai com o papel novo, não o antigo.
+        membership = serializer.instance
         write = sz.MemberWriteSerializer(data=self.request.data, partial=True)
         write.is_valid(raise_exception=True)
         new_role = write.validated_data.get("role", membership.role)
@@ -377,7 +387,15 @@ class InvitationViewSet(TenantViewSet):
         return Response(data, status=status.HTTP_201_CREATED)
 
     def perform_destroy(self, instance):
-        from django.utils import timezone
-
+        """Revoga em vez de apagar, e registra — revogar convite é mudança de acesso."""
         instance.revoked_at = timezone.now()
         instance.save(update_fields=["revoked_at", "updated_at"])
+        record_audit(
+            action=AuditLog.Action.DELETE,
+            object_type="Invitation",
+            object_id=instance.pk,
+            actor=self.request.user,
+            organization=instance.organization,
+            changes={"revoked": True, "email": instance.email},
+            request=self.request,
+        )

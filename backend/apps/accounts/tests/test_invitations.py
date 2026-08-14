@@ -120,6 +120,24 @@ class TestAceite:
         )
         assert response.status_code == 400
 
+    def test_revogacao_gera_auditoria(self, admin_api):
+        """Revogar convite é mudança de acesso e precisa ficar registrada.
+
+        A remoção de membro já gravava; a revogação não — inconsistência que deixava um
+        buraco na trilha de quem tirou o acesso de quem.
+        """
+        from apps.core.models import AuditLog
+
+        criado = _convidar(admin_api)
+        admin_api.delete(f"/api/v1/organizations/invitations/{criado.data['id']}/")
+
+        log = AuditLog.objects.filter(
+            action=AuditLog.Action.DELETE, object_type="Invitation"
+        ).first()
+        assert log is not None
+        assert str(log.object_id) == str(criado.data["id"])
+        assert log.changes["revoked"] is True
+
     def test_token_forjado_e_recusado(self, api):
         response = api.post(
             "/api/v1/auth/invitations/accept/",

@@ -10,7 +10,8 @@ import os
 
 from celery import Celery
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
+# Fail-closed: ver a justificativa em `manage.py`.
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.production")
 
 app = Celery("leads")
 app.config_from_object("django.conf:settings", namespace="CELERY")

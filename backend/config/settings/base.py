@@ -167,6 +167,9 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "SCHEMA_PATH_PREFIX": "/api/v1",
+    # O default do drf-spectacular é AllowAny: sem isto, o schema e o Swagger entregam a
+    # superfície inteira da API a qualquer anônimo em produção. Dev relaxa (development.py).
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAuthenticated"],
 }
 
 # --- Internacionalização -----------------------------------------------------

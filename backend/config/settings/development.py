@@ -13,8 +13,9 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 
-# Schema navegável em dev.
+# Schema navegável em dev, sem exigir login — em produção continua autenticado (base.py).
 SPECTACULAR_SETTINGS["SERVE_INCLUDE_SCHEMA"] = True
+SPECTACULAR_SETTINGS["SERVE_PERMISSIONS"] = ["rest_framework.permissions.AllowAny"]
 
 # O Swagger UI carrega assets de CDN. Só em dev — a CSP de produção segue estrita.
 CONTENT_SECURITY_POLICY = (

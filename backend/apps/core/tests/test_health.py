@@ -42,3 +42,19 @@ def test_endpoint_de_api_responde_sem_autenticacao(client):
     """Prova o caminho que o rewrite do Next.js usa (ADR-0005)."""
     response = client.get("/api/v1/health/")
     assert response.status_code == 200
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("rota", ["/api/v1/schema/", "/api/v1/docs/"])
+def test_schema_e_docs_exigem_autenticacao(client, rota):
+    """O default do drf-spectacular é AllowAny — entregaria a API inteira a anônimos.
+
+    Health é público de propósito; o schema não. Em dev o `development.py` relaxa.
+    """
+    assert client.get(rota).status_code in (401, 403)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("rota", ["/api/v1/schema/", "/api/v1/docs/"])
+def test_schema_e_docs_abertos_para_autenticado(user, login_as, rota):
+    assert login_as(user).get(rota).status_code == 200

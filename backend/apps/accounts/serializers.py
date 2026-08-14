@@ -101,7 +101,10 @@ class MemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = Membership
         fields = ["id", "user", "role", "is_active", "joined_at"]
-        read_only_fields = ["id", "user", "joined_at"]
+        # `is_active` é read-only: desativar é o `DELETE`, que aplica a guarda do último
+        # OWNER e grava auditoria. Aceitá-lo aqui abriria um segundo caminho para o mesmo
+        # efeito, sem nenhuma das duas coisas.
+        read_only_fields = ["id", "user", "is_active", "joined_at"]
 
 
 class InvitationSerializer(serializers.ModelSerializer):

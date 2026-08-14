@@ -12,7 +12,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, ClassVar
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-from django.db import models
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
@@ -117,12 +117,26 @@ class Organization(BaseModel):
         return self.name
 
     def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = self._build_unique_slug()
-        super().save(*args, **kwargs)
+        if self.slug:
+            return super().save(*args, **kwargs)
 
-    def _build_unique_slug(self) -> str:
-        base = slugify(self.name)[:150] or "org"
+        self.slug = self._build_readable_slug()
+        try:
+            with transaction.atomic():
+                return super().save(*args, **kwargs)
+        except IntegrityError:
+            # Outra transação levou o mesmo slug entre a checagem e o INSERT. Quem arbitra
+            # é a UniqueConstraint, não um `if exists` em Python (CLAUDE.md) — e o desempate
+            # é aleatório de propósito: repetir a contagem colidiria de novo.
+            self.slug = f"{self._slug_base()[:140]}-{secrets.token_hex(3)}"
+            return super().save(*args, **kwargs)
+
+    def _slug_base(self) -> str:
+        return slugify(self.name)[:150] or "org"
+
+    def _build_readable_slug(self) -> str:
+        """Primeira tentativa, legível. A unicidade real é garantida pelo banco."""
+        base = self._slug_base()
         candidate = base
         suffix = 2
         while Organization.objects.filter(slug=candidate).exclude(pk=self.pk).exists():

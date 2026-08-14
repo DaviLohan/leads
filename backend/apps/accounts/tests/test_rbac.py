@@ -71,6 +71,28 @@ def test_admin_altera_papel_de_membro(como, make_user, org, make_member):
     assert response.status_code == 200
     membership.refresh_from_db()
     assert membership.role == Role.MANAGER
+    # O corpo precisa refletir a alteração: devolver o papel antigo com 200 faz o cliente
+    # exibir dado errado sem nenhum sinal de que errou.
+    assert response.json()["role"] == Role.MANAGER
+
+
+def test_patch_nao_desativa_membro_pela_porta_dos_fundos(como, make_user, org, make_member):
+    """Desativar é o `DELETE`, que aplica a guarda do último OWNER e grava auditoria.
+
+    `is_active` é read-only no serializer — enviá-lo não pode desativar ninguém nem
+    fingir que desativou.
+    """
+    alvo = make_user("alvo@exemplo.com")
+    membership = make_member(alvo, org, Role.SALES)
+
+    response = como(Role.ADMIN).patch(
+        f"/api/v1/organizations/members/{membership.pk}/", {"is_active": False}, format="json"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["is_active"] is True
+    membership.refresh_from_db()
+    assert membership.is_active is True
 
 
 def test_mudanca_de_papel_gera_auditoria(como, make_user, org, make_member):
