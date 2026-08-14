@@ -12,8 +12,12 @@ from rest_framework.response import Response
 
 from apps.accounts.models import Role
 from apps.accounts.permissions import MinRole
-from apps.analysis.models import Opportunity, WebsiteScan
-from apps.analysis.serializers import OpportunitySerializer, WebsiteScanSerializer
+from apps.analysis.models import Opportunity, Score, WebsiteScan
+from apps.analysis.serializers import (
+    OpportunitySerializer,
+    ScoreSerializer,
+    WebsiteScanSerializer,
+)
 from apps.analysis.tasks import scan_company_task
 from apps.companies.models import Company
 
@@ -64,4 +68,19 @@ class OpportunityViewSet(viewsets.ReadOnlyModelViewSet):
             # Abertas primeiro e mais confiáveis no topo: é a ordem em que alguém trabalharia
             # a lista, e a paginação precisa de ordem explícita de qualquer forma.
             .order_by("status", "-confidence", "-detected_at")
+        )
+
+
+class ScoreViewSet(viewsets.ReadOnlyModelViewSet):
+    """Pontuação dos leads, sempre com o breakdown. Escrever é do motor."""
+
+    serializer_class = ScoreSerializer
+    filterset_fields = ["company"]
+
+    def get_queryset(self):
+        # Maior pontuação primeiro: é a ordem de trabalho de quem prospecta.
+        return (
+            Score.objects.select_related("company")
+            .prefetch_related("components")
+            .order_by("-value", "company__name")
         )

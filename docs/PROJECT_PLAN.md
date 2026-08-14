@@ -137,8 +137,8 @@ Descrição detalhada em `ARCHITECTURE.md`. Resumo:
 | 8 | Search engine: Search, SearchJob, tasks, progresso, retries, rate limit | ✅ concluída |
 | 9 | Análise de site: guard de SSRF primeiro, depois o scanner | ✅ concluída |
 | 10 | Opportunity Engine | ✅ concluída |
-| 11 | Scoring configurável com breakdown | próxima |
-| 12 | CRM: Lead, Pipeline, Stage, Interaction | |
+| 11 | Scoring configurável com breakdown | ✅ concluída |
+| 12 | CRM: Lead, Pipeline, Stage, Interaction | próxima |
 | 13 | Frontend: Login, Dashboard, Radar, Empresas, Detalhe, CRM, Buscas, Configurações | |
 | 14 | Hardening: segurança, performance, índices, N+1, throttling, logging, container | |
 

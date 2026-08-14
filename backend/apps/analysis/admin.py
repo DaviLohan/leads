@@ -1,6 +1,14 @@
 from django.contrib import admin
 
-from apps.analysis.models import Opportunity, OpportunityType, WebsiteFinding, WebsiteScan
+from apps.analysis.models import (
+    Opportunity,
+    OpportunityType,
+    Score,
+    ScoreComponent,
+    ScoreRule,
+    WebsiteFinding,
+    WebsiteScan,
+)
 
 CAMPOS_DO_ACHADO = ("code", "severity", "detail")
 
@@ -55,3 +63,42 @@ class OpportunityAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("company", "type")
+
+
+@admin.register(ScoreRule)
+class ScoreRuleAdmin(admin.ModelAdmin):
+    """Onde o peso de cada sinal se ajusta sem deploy — o ponto do ADR-0008."""
+
+    list_display = ["name", "code", "points", "is_active"]
+    list_editable = ["points", "is_active"]
+    list_filter = ["is_active"]
+    search_fields = ["code", "name"]
+
+
+CAMPOS_DA_PARCELA = ("rule_code", "points", "reason")
+
+
+class ScoreComponentInline(admin.TabularInline):
+    model = ScoreComponent
+    extra = 0
+    # O breakdown é o cálculo registrado: editar à mão faria as parcelas não somarem o total.
+    fields = CAMPOS_DA_PARCELA
+    readonly_fields = CAMPOS_DA_PARCELA
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None) -> bool:
+        return False
+
+
+@admin.register(Score)
+class ScoreAdmin(admin.ModelAdmin):
+    list_display = ["company", "value", "version", "computed_at"]
+    search_fields = ["company__name"]
+    readonly_fields = ("company", "value", "version", "computed_at")
+    inlines = [ScoreComponentInline]
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("company")

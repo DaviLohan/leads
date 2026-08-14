@@ -41,7 +41,7 @@ mora na view.
 | `companies` | Company + endereços, contatos, sites, categorias, normalização | ✅ (dedup: Etapa 6) |
 | `providers` | BaseProvider, Overpass, Mock, CompanySource, uso, rate limit | ✅ |
 | `discovery` | Search, SearchJob, SearchResult, particionamento, tasks | ✅ |
-| `analysis` | WebsiteScan/Finding, SSRF guard, Opportunity, Score | ✅ (Score: Etapa 11) |
+| `analysis` | WebsiteScan/Finding, SSRF guard, Opportunity, Score | ✅ |
 | `crm` | Lead, Pipeline, Stage, Interaction, Note, Task, Suppression | Etapa 12 |
 
 **Não crie um app antes da etapa que o usa.** Pacotes vazios são dívida, não preparo.
@@ -146,9 +146,9 @@ Segurança → Integridade dos dados → Manutenibilidade → Clareza → Testab
 
 ## Estado atual
 
-Etapas 1 a 10 concluídas (de 14): arquitetura, fundação, auth/RBAC, geografia, empresas com
-normalização, deduplicação, fontes de dados, motor de busca, análise de site e oportunidades.
-Próxima: **Etapa 11 — Score configurável com breakdown**.
+Etapas 1 a 11 concluídas (de 14): arquitetura, fundação, auth/RBAC, geografia, empresas com
+normalização, deduplicação, fontes de dados, motor de busca, análise de site, oportunidades e
+score. Próxima: **Etapa 12 — CRM (Lead, Pipeline, Interaction, Suppression)**.
 Roadmap completo em `docs/PROJECT_PLAN.md`.
 
 Não existe cadastro público: a primeira organização nasce de
@@ -269,3 +269,14 @@ oportunidades inventadas.
 não consulta o banco: viraria N+1 silencioso sobre milhares de empresas.
 
 Oportunidade que deixou de valer vira `RESOLVED` com data, nunca é apagada.
+
+O score mede **quanto vale ir atrás da empresa**, não quão boa ela é: quem não tem site é
+lead melhor para quem vende site. Peso negativo existe para dificuldade de abordagem —
+empresa sem telefone nenhum cai na fila mesmo tendo boa oportunidade.
+
+Toda parcela grava regra, pontos e motivo: o breakdown **soma** o valor exibido, e o corte
+em 0–100 é no fim, sobre a soma. `Score.version` é hash do conjunto de regras, não número
+que alguém precisa lembrar de incrementar — sem ele, comparar scores de semanas diferentes é
+comparar coisas distintas.
+
+Antes de usar: `seed_opportunity_types` e `seed_score_rules`.

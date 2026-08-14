@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from apps.analysis.models import Opportunity, WebsiteFinding, WebsiteScan
+from apps.analysis.models import (
+    Opportunity,
+    Score,
+    ScoreComponent,
+    WebsiteFinding,
+    WebsiteScan,
+)
 
 
 class WebsiteFindingSerializer(serializers.ModelSerializer):
@@ -65,3 +71,24 @@ class OpportunitySerializer(serializers.ModelSerializer):
             "detected_at",
             "resolved_at",
         ]
+
+
+class ScoreComponentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ScoreComponent
+        fields = ["rule_code", "points", "reason"]
+
+
+class ScoreSerializer(serializers.ModelSerializer):
+    """O score sempre acompanhado do breakdown.
+
+    Nunca só o número: um 0 a 100 solto não convence quem vai ligar para o cliente, e não dá
+    para depurar quando estiver errado (ADR-0008).
+    """
+
+    company_name = serializers.CharField(source="company.name", read_only=True)
+    components = ScoreComponentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Score
+        fields = ["id", "company", "company_name", "value", "version", "computed_at", "components"]

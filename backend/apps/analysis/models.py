@@ -219,3 +219,98 @@ class Opportunity(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.company.name} — {self.type.name}"
+
+
+class ScoreRule(BaseModel):
+    """Quanto vale cada sinal na pontuação de um lead (ADR-0008).
+
+    `code` referencia o mesmo registro de predicados que `OpportunityType` usa — é a "mesma
+    mecânica" que o ADR exige, e não um segundo motor de regras paralelo.
+
+    Pontos positivos indicam **mais oportunidade**, não melhor empresa: quem não tem site é
+    lead melhor para quem vende site. Peso negativo existe para o inverso — empresa sem
+    telefone nenhum é mais difícil de abordar, e isso derruba a prioridade.
+    """
+
+    code = models.SlugField(_("código da regra"), max_length=60, unique=True)
+    name = models.CharField(_("nome"), max_length=120)
+    points = models.SmallIntegerField(_("pontos"))
+    params = models.JSONField(_("parâmetros"), default=dict, blank=True)
+    reason_template = models.CharField(
+        _("justificativa"),
+        max_length=200,
+        help_text=_("Texto que aparece no breakdown quando a regra pontua."),
+    )
+    is_active = models.BooleanField(_("ativa"), default=True)
+
+    class Meta:
+        verbose_name = _("regra de pontuação")
+        verbose_name_plural = _("regras de pontuação")
+        ordering = ["-points"]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.points:+d})"
+
+
+class Score(BaseModel):
+    """A pontuação atual de uma empresa. Uma por empresa, sempre a mais recente.
+
+    `version` identifica o conjunto de regras que produziu este número. Sem isso, comparar
+    dois scores calculados em semanas diferentes é comparar coisas distintas — e ninguém
+    saberia que os pesos mudaram no meio.
+    """
+
+    company = models.OneToOneField(
+        "companies.Company",
+        on_delete=models.CASCADE,
+        related_name="score",
+        verbose_name=_("empresa"),
+    )
+    value = models.PositiveSmallIntegerField(_("pontuação"), default=0)
+    version = models.CharField(_("versão das regras"), max_length=16)
+    computed_at = models.DateTimeField(_("calculada em"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("pontuação")
+        verbose_name_plural = _("pontuações")
+        ordering = ["-value"]
+        constraints = [
+            # 0 a 100 no banco, e não só no motor: um cálculo com bug não pode gravar 340 e a
+            # tela mostrar uma empresa com prioridade impossível.
+            models.CheckConstraint(
+                condition=models.Q(value__gte=0, value__lte=100), name="score_entre_0_e_100"
+            ),
+        ]
+        indexes = [models.Index(fields=["-value"])]
+
+    def __str__(self) -> str:
+        return f"{self.company.name}: {self.value}"
+
+
+class ScoreComponent(BaseModel):
+    """Uma parcela da pontuação, com regra e justificativa.
+
+    É o breakdown auditável que o ADR-0008 exige: cada ponto tem de ter regra e motivo. Um
+    número solto de 0 a 100 não convence ninguém do time comercial, e não dá para depurar
+    quando estiver errado.
+    """
+
+    score = models.ForeignKey(
+        Score, on_delete=models.CASCADE, related_name="components", verbose_name=_("pontuação")
+    )
+    rule_code = models.CharField(_("regra"), max_length=60)
+    points = models.SmallIntegerField(_("pontos"))
+    reason = models.CharField(_("motivo"), max_length=200)
+
+    class Meta:
+        verbose_name = _("parcela da pontuação")
+        verbose_name_plural = _("parcelas da pontuação")
+        ordering = ["-points"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["score", "rule_code"], name="uniq_parcela_por_pontuacao_regra"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.rule_code}: {self.points:+d}"

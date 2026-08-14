@@ -219,15 +219,23 @@ def scan_company(company: Company) -> WebsiteScan | None:
 
 
 def _detectar_oportunidades(company: Company) -> None:
-    """Reavalia as oportunidades logo depois de analisar.
+    """Reavalia oportunidades e pontuação logo depois de analisar.
 
-    Import local: `opportunities` importa `models` deste mesmo app, e no topo isto seria
+    Import local: os dois módulos importam `models` deste mesmo app, e no topo isto seria
     ciclo. Falha aqui não pode desfazer a análise, que é o dado caro — a varredura já
     aconteceu, e perdê-la por causa do motor de regras seria trocar o certo pelo duvidoso.
+
+    A pontuação vem depois das oportunidades porque lê o mesmo contexto já atualizado.
     """
     from apps.analysis.opportunities import detect
+    from apps.analysis.scoring import score_company
 
     try:
         detect(company)
     except Exception:
         logger.exception("Falha ao detectar oportunidades", extra={"company": str(company.pk)})
+
+    try:
+        score_company(company)
+    except Exception:
+        logger.exception("Falha ao pontuar", extra={"company": str(company.pk)})
