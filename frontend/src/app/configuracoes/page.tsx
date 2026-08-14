@@ -177,11 +177,7 @@ function Formulario({ aoRegistrar }: { aoRegistrar: () => void }) {
         {enviando ? "…" : "Registrar"}
       </Botao>
 
-      {erro && (
-        <p className="basis-full">
-          <Erro mensagem={erro} />
-        </p>
-      )}
+      {erro && <Erro mensagem={erro} className="basis-full" />}
       {feito && <p className="text-acao basis-full text-sm">{feito}</p>}
     </form>
   );

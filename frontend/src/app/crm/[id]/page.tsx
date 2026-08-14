@@ -255,11 +255,7 @@ function RegistrarContato({ leadId, aoRegistrar }: { leadId: string; aoRegistrar
         </Botao>
       </div>
 
-      {erro && (
-        <p className="mt-3">
-          <Erro mensagem={erro} />
-        </p>
-      )}
+      {erro && <Erro mensagem={erro} className="mt-3" />}
     </form>
   );
 }

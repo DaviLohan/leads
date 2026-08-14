@@ -190,11 +190,7 @@ function NovaBusca({ estados, aoCriar }: { estados: Estado[]; aoCriar: () => voi
           )}
         </p>
       )}
-      {erro && (
-        <p className="mt-3">
-          <Erro mensagem={erro} />
-        </p>
-      )}
+      {erro && <Erro mensagem={erro} className="mt-3" />}
     </form>
   );
 }

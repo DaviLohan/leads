@@ -133,9 +133,16 @@ export function Vazio({ titulo, acao }: { titulo: string; acao?: React.ReactNode
   );
 }
 
-export function Erro({ mensagem }: { mensagem: string }) {
+/**
+ * Mensagem de erro.
+ *
+ * Aceita `className` porque já é um `<p>`: sem isso, quem precisava de margem envolvia num
+ * `<p className="mt-3">`, e `<p>` dentro de `<p>` é HTML inválido — o navegador fecha o
+ * primeiro sozinho, o servidor não, e a hidratação quebra.
+ */
+export function Erro({ mensagem, className = "" }: { mensagem: string; className?: string }) {
   return (
-    <p role="alert" className="text-perdido text-sm">
+    <p role="alert" className={`text-perdido text-sm ${className}`}>
       {mensagem}
     </p>
   );
