@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.geography",
     "apps.companies",
+    "apps.providers",
 ]
 
 MIDDLEWARE = [
@@ -263,6 +264,16 @@ IBGE_USER_AGENT = env("IBGE_USER_AGENT", "leads-radar/0.1")
 OVERPASS_API_URL = env("OVERPASS_API_URL", "https://overpass-api.de/api/interpreter")
 OVERPASS_RATE_LIMIT_PER_SECOND = env_int("OVERPASS_RATE_LIMIT_PER_SECOND", 1)
 OVERPASS_USER_AGENT = env("OVERPASS_USER_AGENT", "leads-radar/0.1")
+# O `[timeout:]` da consulta e o timeout do socket: uma busca por município leva segundos.
+OVERPASS_TIMEOUT_SECONDS = env_int("OVERPASS_TIMEOUT_SECONDS", 90)
+# Cinco, não três: medido contra o endpoint público, uma busca por município levou dois 504
+# seguidos antes de responder. O serviço é comunitário e fica sobrecarregado em horário de
+# pico (ADR-0004) — desistir cedo transformaria instabilidade da fonte em job perdido.
+OVERPASS_MAX_ATTEMPTS = env_int("OVERPASS_MAX_ATTEMPTS", 5)
+OVERPASS_MAX_BYTES = env_int("OVERPASS_MAX_BYTES", 64_000_000)
+# Teto diário próprio, além do limite por segundo: o endpoint público é comunitário e não
+# tem cota publicada — o limite existe para nos impedir de abusar, não porque nos cobram.
+OVERPASS_DAILY_QUOTA = env_int("OVERPASS_DAILY_QUOTA", 5000)
 
 # --- Análise de sites (limites do guard de SSRF, ver SECURITY.md) ------------
 

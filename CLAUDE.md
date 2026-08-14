@@ -39,7 +39,7 @@ mora na view.
 | `accounts` | User, Organization, Membership, Invitation, RBAC, autenticação por sessão | ✅ |
 | `geography` | State, City (IBGE), geometrias | ✅ |
 | `companies` | Company + endereços, contatos, sites, categorias, normalização | ✅ (dedup: Etapa 6) |
-| `providers` | BaseProvider, Overpass, Mock, credenciais, uso, rate limit | Etapa 7 |
+| `providers` | BaseProvider, Overpass, Mock, CompanySource, uso, rate limit | ✅ |
 | `discovery` | Search, SearchJob, particionamento, tasks | Etapa 8 |
 | `analysis` | WebsiteScan/Finding, SSRF guard, Opportunity, Score | Etapas 9–11 |
 | `crm` | Lead, Pipeline, Stage, Interaction, Note, Task, Suppression | Etapa 12 |
@@ -134,9 +134,9 @@ Segurança → Integridade dos dados → Manutenibilidade → Clareza → Testab
 
 ## Estado atual
 
-Etapas 1 a 6 concluídas: arquitetura, fundação, autenticação, organizações, RBAC, isolamento
-de tenant, geografia, o modelo de empresas com normalização e a deduplicação.
-Próxima: **Etapa 7 — providers (abstração + Overpass + Mock)**.
+Etapas 1 a 7 concluídas: arquitetura, fundação, autenticação, organizações, RBAC, isolamento
+de tenant, geografia, empresas com normalização, deduplicação e as fontes de dados.
+Próxima: **Etapa 8 — motor de busca (Search, SearchJob, tasks, progresso)**.
 Roadmap completo em `docs/PROJECT_PLAN.md`.
 
 Não existe cadastro público: a primeira organização nasce de
@@ -173,3 +173,20 @@ Merge é `companies/services.merge_companies` — atômico, com `select_for_upda
 validar (validar objeto em memória deixa fundir duas vezes), satélite colidente descartado
 em vez de derrubar a transação, e auditoria por `record_audit`. A duplicata não é apagada:
 vira `status=MERGED` com `merged_into` apontando para a sobrevivente.
+
+## Fontes de dados
+
+Provider **não escreve no banco** e não importa model (ADR-0003). Devolve `RawResult`; quem
+valida, deduplica e persiste é `providers/ingestion.py`, o único módulo do pacote que grava.
+`if provider == "x"` fora de `apps/providers` significa que a abstração vazou.
+
+Busca no Overpass recorta por `IBGE:GEOCODIGO`, a mesma chave da Etapa 4, e usa
+`map_to_area` — `area["tag"=...]` responde **504**, o índice de áreas não serve para filtro
+por tag arbitrária. O endpoint público é instável: medido, uma busca levou dois 504 antes de
+responder, por isso `OVERPASS_MAX_ATTEMPTS=5`.
+
+`MockProvider` é obrigatório e determinístico: nenhum teste sai para a rede. Ele imita as
+imperfeições do OSM de propósito (tag faltando, `contact:` misturado com a grafia antiga,
+telefone inválido) — mock limpo demais esconde o bug que deveria pegar.
+
+Antes de usar qualquer fonte: `python manage.py seed_providers`.

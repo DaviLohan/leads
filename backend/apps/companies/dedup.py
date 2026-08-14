@@ -56,11 +56,16 @@ class MatchType(models.TextChoices):
 class CompanyCandidate:
     """Empresa vinda de uma fonte, já normalizada, ainda não persistida.
 
-    É o que o pipeline monta depois de normalizar e antes de decidir. A partir da Etapa 7 os
-    providers produzem isto; hoje quem monta é o teste.
+    É o `BusinessDTO` do ADR-0003: o denominador comum entre todas as fontes. Um tipo só, e
+    não um para deduplicar e outro para gravar — dois DTOs paralelos divergem com o tempo, e
+    a divergência aparece como empresa gravada diferente da que foi comparada.
 
     Os identificadores já chegam normalizados de `apps.companies.normalization` — o resolver
-    não normaliza nada, para não haver duas normalizações divergindo com o tempo.
+    não normaliza nada, para não haver duas normalizações divergindo entre si.
+
+    O que a dedup usa: `name`, `tax_id`, `domain`, `phones`, `city`. O resto é para a
+    persistência. Campo exclusivo de uma fonte não vira atributo aqui: fica em
+    `CompanySource.raw_payload` até valer uma coluna (ADR-0003).
     """
 
     name: str
@@ -68,6 +73,19 @@ class CompanyCandidate:
     domain: str | None = None
     phones: tuple[str, ...] = field(default_factory=tuple)
     city: City | None = None
+
+    # Daqui para baixo, só persistência.
+    legal_name: str = ""
+    description: str = ""
+    website_url: str = ""
+    emails: tuple[str, ...] = field(default_factory=tuple)
+    street: str = ""
+    number: str = ""
+    district: str = ""
+    postal_code: str = ""
+    # Coordenada como par de floats, não `Point`: provider não depende do GeoDjango.
+    latitude: float | None = None
+    longitude: float | None = None
 
     @property
     def normalized_name(self) -> str:
@@ -83,9 +101,26 @@ class Resolution:
     signal: str = ""
     score: float = 0.0
 
+    def __post_init__(self):
+        # A invariante que o resto do sistema assume: só `NEW` vem sem empresa. Sem esta
+        # checagem, uma `Resolution` malformada só apareceria lá na frente, como empresa
+        # duplicada, longe de onde nasceu.
+        if (self.match_type == MatchType.NEW) is not (self.company is None):
+            raise ValueError(
+                f"Resolution inconsistente: match_type={self.match_type} com "
+                f"company={self.company!r}."
+            )
+
     @property
     def is_new(self) -> bool:
         return self.match_type == MatchType.NEW
+
+    @property
+    def matched(self) -> Company:
+        """A empresa correspondente. Só chame quando `is_new` for falso."""
+        if self.company is None:
+            raise ValueError("Resolution NEW não tem empresa correspondente.")
+        return self.company
 
     @property
     def can_merge_automatically(self) -> bool:
