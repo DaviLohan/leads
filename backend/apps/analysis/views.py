@@ -12,8 +12,8 @@ from rest_framework.response import Response
 
 from apps.accounts.models import Role
 from apps.accounts.permissions import MinRole
-from apps.analysis.models import WebsiteScan
-from apps.analysis.serializers import WebsiteScanSerializer
+from apps.analysis.models import Opportunity, WebsiteScan
+from apps.analysis.serializers import OpportunitySerializer, WebsiteScanSerializer
 from apps.analysis.tasks import scan_company_task
 from apps.companies.models import Company
 
@@ -46,3 +46,22 @@ class WebsiteScanViewSet(viewsets.ReadOnlyModelViewSet):
     def get_throttles(self):
         self.throttle_scope = "analysis" if self.action == "rescan" else None
         return super().get_throttles()
+
+
+class OpportunityViewSet(viewsets.ReadOnlyModelViewSet):
+    """Oportunidades detectadas. Somente leitura: quem escreve é o motor de regras.
+
+    Global (ADR-0007): "esta clínica não tem agendamento" é fato sobre a empresa. O que é do
+    tenant é o `Lead` que nasce daqui, na Etapa 12.
+    """
+
+    serializer_class = OpportunitySerializer
+    filterset_fields = ["company", "status", "type__code"]
+
+    def get_queryset(self):
+        return (
+            Opportunity.objects.select_related("company", "type")
+            # Abertas primeiro e mais confiáveis no topo: é a ordem em que alguém trabalharia
+            # a lista, e a paginação precisa de ordem explícita de qualquer forma.
+            .order_by("status", "-confidence", "-detected_at")
+        )

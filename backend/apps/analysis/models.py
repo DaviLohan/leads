@@ -127,3 +127,95 @@ class WebsiteFinding(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.get_code_display()} ({self.severity})"
+
+
+class OpportunityType(BaseModel):
+    """Um tipo de oportunidade de venda, com o predicado que a detecta (ADR-0008).
+
+    `rule_code` referencia um predicado registrado em `apps.analysis.rules`. O banco decide
+    se está ativo, com que confiança e com quais parâmetros — o código decide **como**
+    avaliar. Código desconhecido é ignorado com aviso, nunca quebra o motor.
+    """
+
+    code = models.SlugField(_("código"), max_length=60, unique=True)
+    name = models.CharField(_("nome"), max_length=120)
+    description = models.TextField(_("descrição"), blank=True)
+    rule_code = models.CharField(_("regra"), max_length=60)
+    rule_params = models.JSONField(_("parâmetros da regra"), default=dict, blank=True)
+    # Restringe o tipo a certas categorias. Vazio = vale para qualquer uma. É o que faz
+    # "agendamento" valer para clínica e não para oficina, sem `if` no motor.
+    category_slugs = models.JSONField(_("categorias"), default=list, blank=True)
+    base_confidence = models.DecimalField(_("confiança"), max_digits=3, decimal_places=2, default=1)
+    is_active = models.BooleanField(_("ativo"), default=True)
+
+    class Meta:
+        verbose_name = _("tipo de oportunidade")
+        verbose_name_plural = _("tipos de oportunidade")
+        ordering = ["name"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(base_confidence__gte=0, base_confidence__lte=1),
+                name="tipo_confianca_entre_0_e_1",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Opportunity(BaseModel):
+    """Uma oportunidade detectada para uma empresa.
+
+    Global, como o resto da análise: "esta clínica não tem agendamento online" é fato sobre
+    a empresa, não sobre quem a prospecta. O que é do tenant é o `Lead` (Etapa 12).
+
+    Não é apagada quando some: vira `RESOLVED` com data. Empresa que finalmente pôs
+    agendamento no ar é informação comercial — sai do radar, fica no histórico.
+    """
+
+    class Status(models.TextChoices):
+        OPEN = "OPEN", _("Aberta")
+        RESOLVED = "RESOLVED", _("Resolvida")
+        DISMISSED = "DISMISSED", _("Descartada")
+
+    company = models.ForeignKey(
+        "companies.Company",
+        on_delete=models.CASCADE,
+        related_name="opportunities",
+        verbose_name=_("empresa"),
+    )
+    type = models.ForeignKey(
+        OpportunityType,
+        on_delete=models.PROTECT,
+        related_name="opportunities",
+        verbose_name=_("tipo"),
+    )
+    status = models.CharField(
+        _("situação"), max_length=16, choices=Status.choices, default=Status.OPEN
+    )
+    confidence = models.DecimalField(_("confiança"), max_digits=3, decimal_places=2, default=1)
+    # O que sustentava a conclusão no momento da deteção. Sem isto, "detectamos que não tem
+    # agendamento" é afirmação sem lastro — e quem for vender não sabe o que dizer.
+    evidence = models.JSONField(_("evidência"), default=dict, blank=True)
+    detected_at = models.DateTimeField(_("detectada em"), auto_now_add=True)
+    resolved_at = models.DateTimeField(_("resolvida em"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("oportunidade")
+        verbose_name_plural = _("oportunidades")
+        ordering = ["-detected_at"]
+        constraints = [
+            # Uma oportunidade por empresa e tipo: reavaliar atualiza a existente em vez de
+            # empilhar duplicatas a cada varredura.
+            models.UniqueConstraint(
+                fields=["company", "type"], name="uniq_oportunidade_por_empresa_tipo"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(confidence__gte=0, confidence__lte=1),
+                name="oportunidade_confianca_entre_0_e_1",
+            ),
+        ]
+        indexes = [models.Index(fields=["status", "-detected_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.company.name} — {self.type.name}"

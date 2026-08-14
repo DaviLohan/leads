@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from apps.analysis.models import WebsiteFinding, WebsiteScan
+from apps.analysis.models import Opportunity, OpportunityType, WebsiteFinding, WebsiteScan
 
 CAMPOS_DO_ACHADO = ("code", "severity", "detail")
 
@@ -30,3 +30,28 @@ class WebsiteScanAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("company")
+
+
+@admin.register(OpportunityType)
+class OpportunityTypeAdmin(admin.ModelAdmin):
+    """É por aqui que se ajusta regra sem deploy — o ponto do ADR-0008."""
+
+    list_display = ["name", "code", "rule_code", "base_confidence", "is_active"]
+    list_filter = ["is_active", "rule_code"]
+    search_fields = ["code", "name"]
+    list_editable = ["base_confidence", "is_active"]
+
+
+@admin.register(Opportunity)
+class OpportunityAdmin(admin.ModelAdmin):
+    list_display = ["company", "type", "status", "confidence", "detected_at"]
+    list_filter = ["status", "type"]
+    search_fields = ["company__name"]
+    # Deteção é registro do motor: editar à mão faria a evidência não bater com a conclusão.
+    readonly_fields = ("company", "type", "confidence", "evidence", "detected_at")
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("company", "type")

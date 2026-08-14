@@ -189,6 +189,9 @@ def scan_company(company: Company) -> WebsiteScan | None:
         if company.website_status != Company.WebsiteStatus.NOT_FOUND:
             company.website_status = Company.WebsiteStatus.NOT_FOUND
             company.save(update_fields=["website_status", "updated_at"])
+        # Empresa sem site é o caso de maior valor comercial — não pode ficar de fora só
+        # porque não houve o que visitar.
+        _detectar_oportunidades(company)
         return None
 
     scan = scan_website(site)
@@ -211,4 +214,20 @@ def scan_company(company: Company) -> WebsiteScan | None:
         company.website_status = situacao
         company.save(update_fields=["website_status", "updated_at"])
 
+    _detectar_oportunidades(company)
     return scan
+
+
+def _detectar_oportunidades(company: Company) -> None:
+    """Reavalia as oportunidades logo depois de analisar.
+
+    Import local: `opportunities` importa `models` deste mesmo app, e no topo isto seria
+    ciclo. Falha aqui não pode desfazer a análise, que é o dado caro — a varredura já
+    aconteceu, e perdê-la por causa do motor de regras seria trocar o certo pelo duvidoso.
+    """
+    from apps.analysis.opportunities import detect
+
+    try:
+        detect(company)
+    except Exception:
+        logger.exception("Falha ao detectar oportunidades", extra={"company": str(company.pk)})

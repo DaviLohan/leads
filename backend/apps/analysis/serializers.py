@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from apps.analysis.models import WebsiteFinding, WebsiteScan
+from apps.analysis.models import Opportunity, WebsiteFinding, WebsiteScan
 
 
 class WebsiteFindingSerializer(serializers.ModelSerializer):
@@ -41,4 +41,27 @@ class WebsiteScanSerializer(serializers.ModelSerializer):
             "error_detail",
             "scanned_at",
             "findings",
+        ]
+
+
+class OpportunitySerializer(serializers.ModelSerializer):
+    company_name = serializers.CharField(source="company.name", read_only=True)
+    type_code = serializers.CharField(source="type.code", read_only=True)
+    type_name = serializers.CharField(source="type.name", read_only=True)
+    type_description = serializers.CharField(source="type.description", read_only=True)
+
+    class Meta:
+        model = Opportunity
+        fields = [
+            "id",
+            "company",
+            "company_name",
+            "type_code",
+            "type_name",
+            "type_description",
+            "status",
+            "confidence",
+            "evidence",
+            "detected_at",
+            "resolved_at",
         ]

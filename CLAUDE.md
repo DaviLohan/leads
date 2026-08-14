@@ -41,7 +41,7 @@ mora na view.
 | `companies` | Company + endereços, contatos, sites, categorias, normalização | ✅ (dedup: Etapa 6) |
 | `providers` | BaseProvider, Overpass, Mock, CompanySource, uso, rate limit | ✅ |
 | `discovery` | Search, SearchJob, SearchResult, particionamento, tasks | ✅ |
-| `analysis` | WebsiteScan/Finding, SSRF guard, Opportunity, Score | ✅ (Opportunity/Score: 10–11) |
+| `analysis` | WebsiteScan/Finding, SSRF guard, Opportunity, Score | ✅ (Score: Etapa 11) |
 | `crm` | Lead, Pipeline, Stage, Interaction, Note, Task, Suppression | Etapa 12 |
 
 **Não crie um app antes da etapa que o usa.** Pacotes vazios são dívida, não preparo.
@@ -146,9 +146,9 @@ Segurança → Integridade dos dados → Manutenibilidade → Clareza → Testab
 
 ## Estado atual
 
-Etapas 1 a 9 concluídas (de 14): arquitetura, fundação, auth/RBAC, geografia, empresas com
-normalização, deduplicação, fontes de dados, motor de busca e análise de site.
-Próxima: **Etapa 10 — Opportunity Engine**.
+Etapas 1 a 10 concluídas (de 14): arquitetura, fundação, auth/RBAC, geografia, empresas com
+normalização, deduplicação, fontes de dados, motor de busca, análise de site e oportunidades.
+Próxima: **Etapa 11 — Score configurável com breakdown**.
 Roadmap completo em `docs/PROJECT_PLAN.md`.
 
 Não existe cadastro público: a primeira organização nasce de
@@ -247,3 +247,25 @@ continua `FOUND`, e quem lê o funcionamento é a Etapa 10.
 
 URL entra normalizada por `CompanyWebsite.save` — a tag `website` do OSM vem sem esquema na
 maioria das vezes, e URL torta faria o guard tratar dado sujo como ataque.
+
+## Regras e oportunidades (ADR-0008)
+
+Predicado em `apps/analysis/rules.py`, decorado com `@rule("codigo")`. Parâmetro, peso e
+ativação em `OpportunityType`, no banco. **Sem `eval`, sem `exec`, sem expressão vinda de
+string — nunca.** Há teste que verifica isso pela AST.
+
+Criar tipo novo de regra exige código, e é de propósito: regra nova é lógica nova, e lógica
+nova merece revisão em PR. Ajustar peso é `UPDATE`.
+
+Código de regra desconhecido é ignorado com aviso e não quebra o cálculo; predicado com
+defeito derruba a sua regra, não a empresa inteira.
+
+**A regra que sustenta a credibilidade do produto: "não sei" nunca vira "não tem".** Empresa
+nunca analisada não gera oportunidade nenhuma. Sinal vindo de scan que falhou chega como
+`None`, e não como o `False` padrão do model — senão site que nem foi visitado viraria três
+oportunidades inventadas.
+
+`CompanyContext` é montado uma vez por empresa, em `opportunities.build_context`. Predicado
+não consulta o banco: viraria N+1 silencioso sobre milhares de empresas.
+
+Oportunidade que deixou de valer vira `RESOLVED` com data, nunca é apagada.
