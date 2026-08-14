@@ -1,0 +1,47 @@
+# Sobreposição de produção.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Passar os arquivos com -f impede o carregamento do docker-compose.override.yml, então
+# aqui não existe código montado como volume nem porta de banco publicada.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      args:
+        INSTALL_DEV: "false"
+    command: >
+      gunicorn config.wsgi:application
+      --bind 0.0.0.0:8000
+      --workers ${GUNICORN_WORKERS:-3}
+      --timeout 60
+      --access-logfile -
+      --error-logfile -
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+
+  celery_worker:
+    build:
+      context: ./backend
+      args:
+        INSTALL_DEV: "false"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+
+  celery_beat:
+    build:
+      context: ./backend
+      args:
+        INSTALL_DEV: "false"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+
+  frontend:
+    build:
+      context: ./frontend
+      target: runner
+    command: node server.js
+    environment:
+      NODE_ENV: production
+      BACKEND_URL: http://backend:8000

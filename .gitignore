@@ -1,0 +1,43 @@
+# Segredos — nunca versionar
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Django
+staticfiles/
+media/
+*.sqlite3
+celerybeat-schedule*
+
+# Node / Next
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+coverage/
+.eslintcache
+
+# Editores / SO
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
+# Dumps e artefatos locais
+*.dump
+*.sql.gz

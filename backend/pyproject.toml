@@ -1,0 +1,64 @@
+# Configuração de ferramentas. As dependências ficam em requirements*.txt —
+# o backend é uma aplicação, não um pacote distribuível.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "N",        # pep8-naming
+    "UP",       # pyupgrade
+    "B",        # bugbear
+    "C4",       # comprehensions
+    "DJ",       # flake8-django
+    "S",        # bandit (segurança)
+    "BLE",      # blind except  <- proíbe `except Exception: pass`
+    "T20",      # print esquecido
+    "RUF",
+]
+ignore = [
+    "S101",  # assert é normal em teste
+    "RUF012",  # ClassVar em atributos mutáveis de model do Django
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*/tests/*" = ["S105", "S106"]  # senhas fixas em teste
+"conftest.py" = ["S106"]
+"config/settings/*" = ["F403", "F405"]  # import * entre settings é intencional
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config"]
+
+[tool.black]
+target-version = ["py312"]
+line-length = 100
+extend-exclude = "/migrations/"
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+exclude = ["migrations/"]
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+pythonpath = ["."]
+python_files = ["test_*.py"]
+addopts = "--strict-markers --disable-warnings"
+testpaths = ["apps"]
+
+[tool.coverage.run]
+source = ["apps"]
+omit = ["*/migrations/*", "*/tests/*"]
