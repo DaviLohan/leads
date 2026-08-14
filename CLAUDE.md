@@ -41,7 +41,7 @@ mora na view.
 | `companies` | Company + endereços, contatos, sites, categorias, normalização | ✅ (dedup: Etapa 6) |
 | `providers` | BaseProvider, Overpass, Mock, CompanySource, uso, rate limit | ✅ |
 | `discovery` | Search, SearchJob, SearchResult, particionamento, tasks | ✅ |
-| `analysis` | WebsiteScan/Finding, SSRF guard, Opportunity, Score | Etapas 9–11 |
+| `analysis` | WebsiteScan/Finding, SSRF guard, Opportunity, Score | ✅ (Opportunity/Score: 10–11) |
 | `crm` | Lead, Pipeline, Stage, Interaction, Note, Task, Suppression | Etapa 12 |
 
 **Não crie um app antes da etapa que o usa.** Pacotes vazios são dívida, não preparo.
@@ -146,9 +146,9 @@ Segurança → Integridade dos dados → Manutenibilidade → Clareza → Testab
 
 ## Estado atual
 
-Etapas 1 a 8 concluídas: arquitetura, fundação, autenticação, organizações, RBAC, isolamento
-de tenant, geografia, empresas com normalização, deduplicação, fontes de dados e o motor de
-busca. Próxima: **Etapa 9 — análise de site (guard de SSRF primeiro, depois o scanner)**.
+Etapas 1 a 9 concluídas (de 14): arquitetura, fundação, auth/RBAC, geografia, empresas com
+normalização, deduplicação, fontes de dados, motor de busca e análise de site.
+Próxima: **Etapa 10 — Opportunity Engine**.
 Roadmap completo em `docs/PROJECT_PLAN.md`.
 
 Não existe cadastro público: a primeira organização nasce de
@@ -223,3 +223,27 @@ interface consulta em laço.
 
 Antes de usar: `seed_providers` e as categorias do `seed_dev_data` (é o `provider_mapping`
 que traduz "Dentistas" para as tags de cada fonte).
+
+## Análise de site
+
+**`apps/analysis/ssrf.safe_get` é o único caminho para buscar URL de terceiro.** Se aparecer
+`urlopen` ou `requests` em qualquer app, o guard virou decoração. As sete regras do
+`SECURITY.md` estão implementadas lá, e os testes delas são pré-requisito do scanner existir.
+
+Os dois pontos que não são óbvios:
+
+- **Conectar no IP validado, não no nome.** Validar a string e deixar a lib resolver de novo
+  é TOCTOU: o DNS muda entre a checagem e a conexão. O socket é aberto à mão no IP aprovado,
+  com `server_hostname` no nome para SNI e certificado.
+- **Revalidar cada redirect do zero.** Cada `301` é uma URL escolhida pelo servidor remoto,
+  que nunca passou por validação.
+
+`WebsiteScan.status=BLOCKED` é o guard tendo recusado — evento de segurança, e nunca deve
+virar `UNREACHABLE`, que é site fora do ar. Confundir os dois esconde uma tentativa de SSRF.
+
+`Company.website_status` responde "a fonte identificou um site?"; `WebsiteScan.status`
+responde "o site funciona?". Perguntas diferentes, campos diferentes: domínio expirado
+continua `FOUND`, e quem lê o funcionamento é a Etapa 10.
+
+URL entra normalizada por `CompanyWebsite.save` — a tag `website` do OSM vem sem esquema na
+maioria das vezes, e URL torta faria o guard tratar dado sujo como ataque.

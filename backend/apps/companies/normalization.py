@@ -21,6 +21,8 @@ from urllib.parse import urlsplit
 import phonenumbers
 
 SOMENTE_DIGITOS = re.compile(r"\D")
+# Um esquema de URL segundo a RFC 3986: letra seguida de letras, dígitos, +, - ou ponto.
+ESQUEMA_NO_INICIO = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.\-]*:")
 
 # Pesos do módulo 11 usados pela Receita Federal nos dois dígitos verificadores.
 PESOS_PRIMEIRO_DV = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
@@ -112,3 +114,38 @@ def normalize_domain(value: str | None) -> str | None:
 
     # Precisa sobrar algo com ponto: "localhost" ou "" não são domínio de empresa.
     return host if "." in host else None
+
+
+def normalize_url(value: str | None) -> str | None:
+    """Devolve uma URL absoluta em `https://`, ou `None` se não der para aproveitar.
+
+    >>> normalize_url("www.exemplo.com.br/contato")
+    'https://www.exemplo.com.br/contato'
+    >>> normalize_url("http://exemplo.com.br")
+    'http://exemplo.com.br'
+
+    Fonte externa manda URL sem esquema o tempo todo — a tag `website` do OSM é assim na
+    maioria das vezes. Guardar crua faz o guard de SSRF recusar depois, e um endereço mal
+    formado acabaria classificado como tentativa de ataque em vez de dado sujo.
+
+    O padrão é `https`, e não `http`: site que só atende em texto puro redireciona, e o
+    scanner segue o redirect. O contrário — assumir `http` num site só-HTTPS — desperdiça um
+    salto em toda visita.
+    """
+    if not value:
+        return None
+
+    texto = value.strip()
+    if not texto:
+        return None
+
+    # Só prefixa o que realmente não tem esquema. Testar por `"://"` deixaria
+    # `javascript:alert(1)` virar `https://javascript:alert(1)` — lavando um esquema
+    # perigoso em vez de recusá-lo.
+    if not ESQUEMA_NO_INICIO.match(texto):
+        texto = f"https://{texto}"
+
+    partes = urlsplit(texto)
+    if partes.scheme not in ("http", "https") or not partes.netloc:
+        return None
+    return texto

@@ -292,6 +292,16 @@ class CompanyWebsite(BaseModel):
     )
     last_checked_at = models.DateTimeField(_("verificado em"), null=True, blank=True)
 
+    def save(self, *args, **kwargs):
+        # Derivado no model, e não em cada chamador: fonte externa manda URL sem esquema
+        # (a tag `website` do OSM é assim na maioria das vezes), e uma URL torta no banco
+        # faz o guard de SSRF recusá-la depois — classificando dado sujo como ataque.
+        from apps.companies.normalization import normalize_url
+
+        if normalizada := normalize_url(self.url):
+            self.url = normalizada
+        super().save(*args, **kwargs)
+
     class Meta:
         verbose_name = _("site")
         verbose_name_plural = _("sites")

@@ -1,6 +1,11 @@
 import pytest
 
-from apps.companies.normalization import normalize_domain, normalize_phone, normalize_tax_id
+from apps.companies.normalization import (
+    normalize_domain,
+    normalize_phone,
+    normalize_tax_id,
+    normalize_url,
+)
 
 
 class TestCNPJ:
@@ -103,3 +108,31 @@ class TestDominio:
     @pytest.mark.parametrize("invalido", ["", None, "localhost", "http://localhost:3000", "   "])
     def test_recusa_o_que_nao_e_dominio_de_empresa(self, invalido):
         assert normalize_domain(invalido) is None
+
+
+class TestUrl:
+    @pytest.mark.parametrize(
+        ("entrada", "esperado"),
+        [
+            ("www.exemplo.com.br/", "https://www.exemplo.com.br/"),
+            ("exemplo.com.br", "https://exemplo.com.br"),
+            ("http://exemplo.com.br", "http://exemplo.com.br"),
+            ("https://exemplo.com.br/a?b=1", "https://exemplo.com.br/a?b=1"),
+            ("  exemplo.com.br  ", "https://exemplo.com.br"),
+        ],
+    )
+    def test_completa_o_esquema_que_falta(self, entrada, esperado):
+        """A tag `website` do OSM vem sem esquema na maioria das vezes."""
+        assert normalize_url(entrada) == esperado
+
+    @pytest.mark.parametrize(
+        "perigosa",
+        ["javascript:alert(1)", "data:text/html,<script>", "file:///etc/passwd", "ftp://x"],
+    )
+    def test_esquema_perigoso_e_recusado_e_nao_lavado(self, perigosa):
+        """Testar por "://" faria `javascript:alert(1)` virar `https://javascript:alert(1)`."""
+        assert normalize_url(perigosa) is None
+
+    @pytest.mark.parametrize("invalida", ["", None, "   ", "//sem-esquema.com", "https://"])
+    def test_recusa_o_que_nao_da_para_aproveitar(self, invalida):
+        assert normalize_url(invalida) is None

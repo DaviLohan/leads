@@ -135,8 +135,8 @@ Descrição detalhada em `ARCHITECTURE.md`. Resumo:
 | 6 | Deduplicação: `CompanyResolver` + testes robustos | ✅ concluída |
 | 7 | Providers: abstração + Overpass + Mock | ✅ concluída |
 | 8 | Search engine: Search, SearchJob, tasks, progresso, retries, rate limit | ✅ concluída |
-| 9 | Análise de site: guard de SSRF primeiro, depois o scanner | próxima |
-| 10 | Opportunity Engine | |
+| 9 | Análise de site: guard de SSRF primeiro, depois o scanner | ✅ concluída |
+| 10 | Opportunity Engine | próxima |
 | 11 | Scoring configurável com breakdown | |
 | 12 | CRM: Lead, Pipeline, Stage, Interaction | |
 | 13 | Frontend: Login, Dashboard, Radar, Empresas, Detalhe, CRM, Buscas, Configurações | |

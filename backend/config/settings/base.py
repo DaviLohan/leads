@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "apps.companies",
     "apps.providers",
     "apps.discovery",
+    "apps.analysis",
 ]
 
 MIDDLEWARE = [
@@ -290,3 +291,10 @@ OVERPASS_DAILY_QUOTA = env_int("OVERPASS_DAILY_QUOTA", 5000)
 WEBSITE_SCAN_TIMEOUT_SECONDS = env_int("WEBSITE_SCAN_TIMEOUT_SECONDS", 10)
 WEBSITE_SCAN_MAX_REDIRECTS = env_int("WEBSITE_SCAN_MAX_REDIRECTS", 3)
 WEBSITE_SCAN_MAX_BYTES = env_int("WEBSITE_SCAN_MAX_BYTES", 2_000_000)
+# Identificado, como manda a boa vizinhança: quem for bloquear precisa saber quem somos.
+WEBSITE_SCAN_USER_AGENT = env("WEBSITE_SCAN_USER_AGENT", "leads-radar/0.1 (+analise-de-site)")
+# Acima disto o site entra como "resposta lenta". 2,5 s é o ponto em que o abandono em
+# celular já é relevante — não é número mágico, é limiar de produto e mora em settings.
+WEBSITE_SCAN_SLOW_MS = env_int("WEBSITE_SCAN_SLOW_MS", 2500)
+# Analisar automaticamente o site de empresa recém-descoberta (fluxo do PROJECT_PLAN §4).
+ANALYSIS_AUTO_SCAN_ON_DISCOVERY = env("ANALYSIS_AUTO_SCAN_ON_DISCOVERY", "true").lower() == "true"

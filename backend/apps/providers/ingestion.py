@@ -18,6 +18,7 @@ import logging
 from collections import Counter
 from dataclasses import dataclass, field
 
+from django.conf import settings
 from django.contrib.gis.geos import Point
 from django.db import transaction
 from django.utils import timezone
@@ -181,6 +182,7 @@ def _ingerir_um(
         relatorio.reasons[f"reconhecida por {decisao.signal}"] += 1
 
     _gravar_fonte(empresa, provider_row, bruto, candidato)
+    _enfileirar_analise(empresa)
     relatorio.records.append(
         IngestionRecord(
             external_id=bruto.external_id,
@@ -190,6 +192,24 @@ def _ingerir_um(
             payload=_resumo(candidato),
         )
     )
+
+
+def _enfileirar_analise(empresa: Company) -> None:
+    """Agenda a análise do site da empresa recém-descoberta (PROJECT_PLAN §4).
+
+    `transaction.on_commit` não é preciosismo: enfileirar dentro da transação faz a task
+    começar antes do COMMIT e não encontrar a empresa. O bug é intermitente — só aparece
+    quando o worker é rápido o bastante — e é dos que somem quando se vai investigar.
+
+    O import é local porque `providers` não deve depender de `analysis` em tempo de módulo:
+    a ordem do CLAUDE.md é `providers` <- `analysis`, e importar no topo inverteria a seta.
+    """
+    if not settings.ANALYSIS_AUTO_SCAN_ON_DISCOVERY:
+        return
+
+    from apps.analysis.tasks import scan_company_task
+
+    transaction.on_commit(lambda: scan_company_task.delay(str(empresa.pk)))
 
 
 def _resumo(candidato: CompanyCandidate) -> dict:
