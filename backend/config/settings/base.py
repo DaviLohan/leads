@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.providers",
     "apps.discovery",
     "apps.analysis",
+    "apps.crm",
 ]
 
 MIDDLEWARE = [

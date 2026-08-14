@@ -20,7 +20,8 @@ api_v1: list[URLPattern | URLResolver] = [
     path("", include("apps.geography.urls")),
     path("", include("apps.discovery.urls")),
     path("", include("apps.analysis.urls")),
-    # Os demais módulos de domínio entram aqui a partir da Etapa 10.
+    path("", include("apps.crm.urls")),
+    # Todos os módulos de domínio do backend estão registrados.
 ]
 
 urlpatterns = [

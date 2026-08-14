@@ -138,8 +138,8 @@ Descrição detalhada em `ARCHITECTURE.md`. Resumo:
 | 9 | Análise de site: guard de SSRF primeiro, depois o scanner | ✅ concluída |
 | 10 | Opportunity Engine | ✅ concluída |
 | 11 | Scoring configurável com breakdown | ✅ concluída |
-| 12 | CRM: Lead, Pipeline, Stage, Interaction | próxima |
-| 13 | Frontend: Login, Dashboard, Radar, Empresas, Detalhe, CRM, Buscas, Configurações | |
+| 12 | CRM: Lead, Pipeline, Stage, Interaction | ✅ concluída |
+| 13 | Frontend: Login, Dashboard, Radar, Empresas, Detalhe, CRM, Buscas, Configurações | próxima |
 | 14 | Hardening: segurança, performance, índices, N+1, throttling, logging, container | |
 
 Critério de MVP operacional — o fluxo completo funcionando de ponta a ponta:

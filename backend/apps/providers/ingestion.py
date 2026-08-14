@@ -118,10 +118,16 @@ def _ingerir_um(
 
     candidato = _com_cidade(candidato, city)
 
-    # TODO(Etapa 12): a checagem de supressão da LGPD entra exatamente aqui, entre a
-    # normalização e a dedup — antes de persistir e antes de enfileirar contato
-    # (PROJECT_PLAN §3.4). `SuppressionEntry` ainda não existe; quando existir, é neste
-    # ponto que telefone, e-mail, domínio e CNPJ suprimidos param a ingestão do registro.
+    # Supressão da LGPD (PROJECT_PLAN §3.4): a verificação **não** fica aqui, e isso é
+    # decisão registrada, não esquecimento.
+    #
+    # `Company` é global (ADR-0007) e `SuppressionEntry` é da organização. Recusar a
+    # persistência porque a organização A pediu opt-out esconderia a empresa da organização
+    # B, que nunca pediu nada e tem direito ao mesmo dado público.
+    #
+    # A supressão morde onde significa alguma coisa: criar lead e registrar contato, em
+    # `crm/services.py`. O dado público continua no banco; o que a organização não pode é
+    # usá-lo para abordar. Ver `crm/suppression.py` para o raciocínio completo.
 
     # A procedência é consultada antes da dedup: se esta fonte já viu este `external_id`,
     # a empresa dele é a resposta, sem precisar adivinhar de novo.

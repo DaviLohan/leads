@@ -42,7 +42,7 @@ mora na view.
 | `providers` | BaseProvider, Overpass, Mock, CompanySource, uso, rate limit | ✅ |
 | `discovery` | Search, SearchJob, SearchResult, particionamento, tasks | ✅ |
 | `analysis` | WebsiteScan/Finding, SSRF guard, Opportunity, Score | ✅ |
-| `crm` | Lead, Pipeline, Stage, Interaction, Note, Task, Suppression | Etapa 12 |
+| `crm` | Lead, Pipeline, Stage, Interaction, Note, Task, Suppression | ✅ |
 
 **Não crie um app antes da etapa que o usa.** Pacotes vazios são dívida, não preparo.
 
@@ -146,9 +146,10 @@ Segurança → Integridade dos dados → Manutenibilidade → Clareza → Testab
 
 ## Estado atual
 
-Etapas 1 a 11 concluídas (de 14): arquitetura, fundação, auth/RBAC, geografia, empresas com
-normalização, deduplicação, fontes de dados, motor de busca, análise de site, oportunidades e
-score. Próxima: **Etapa 12 — CRM (Lead, Pipeline, Interaction, Suppression)**.
+Etapas 1 a 12 concluídas (de 14). **O backend está completo**: o fluxo de MVP roda de ponta
+a ponta — busca → empresas normalizadas e deduplicadas → análise de site → oportunidades →
+score com breakdown → lead → histórico → funil até venda fechada.
+Próxima: **Etapa 13 — frontend (Radar, Empresas, Detalhe, CRM, Buscas)**.
 Roadmap completo em `docs/PROJECT_PLAN.md`.
 
 Não existe cadastro público: a primeira organização nasce de
@@ -280,3 +281,32 @@ que alguém precisa lembrar de incrementar — sem ele, comparar scores de seman
 comparar coisas distintas.
 
 Antes de usar: `seed_opportunity_types` e `seed_score_rules`.
+
+## CRM e LGPD
+
+`Company` é global, `Lead` é do tenant — a fronteira do ADR-0007 na prática. Duas
+organizações prospectando a mesma empresa têm dois leads e nenhum acesso ao histórico da
+outra.
+
+`Interaction` é **append-only**, inclusive pelo admin. É o único registro de que a abordagem
+aconteceu, e a prova diante da LGPD. Mudança de estágio entra como `STATUS_CHANGE` gerado
+pelo serviço — trocar `lead.stage` direto apagaria a evidência da decisão.
+
+`Note` é separada de `Interaction` de propósito: interação é *evento* ("liguei terça"), e por
+isso não se reescreve; anotação é *conhecimento* ("o dono é irmão do concorrente"), que se
+corrige quando estava errado.
+
+Só CALL/WHATSAPP/EMAIL/MEETING/PROPOSAL atualizam `last_contacted_at`. Anotação e mudança de
+estágio não são contato — contá-los faria o time achar que falou com o cliente quando só
+mexeu no sistema.
+
+**A supressão não fica na ingestão**, e isso é decisão registrada, não esquecimento:
+`Company` é global e `SuppressionEntry` é da organização, então recusar a persistência
+esconderia a empresa de quem nunca pediu opt-out. Ela morde em `crm/services.create_lead` e
+em `log_interaction` — onde significa alguma coisa. Ver `crm/suppression.py`.
+
+Suprimir **encerra os leads abertos na hora**: registrar sem encerrar deixaria o lead na fila
+de alguém, que ligaria amanhã. E é por identificador normalizado, nunca por empresa — a mesma
+pessoa reaparece com outro `company_id` na próxima busca.
+
+Antes de usar: `python manage.py seed_pipeline`.
