@@ -17,11 +17,19 @@ request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
 REDACTED = "***"
 
-# Casa `password=algo`, `"token": "algo"`, `api_key: algo`, `Authorization: Bearer algo`.
+# Casa `password=algo`, `"token": "algo"`, `api_key: algo`, `Authorization: Bearer algo` e
+# também `DJANGO_SECRET_KEY=algo`.
+#
+# O nome da chave aceita prefixo e sufixo (`[\w.-]*`) de propósito: `\bsecret` **não** casa
+# dentro de `DJANGO_SECRET_KEY`, porque `_` é caractere de palavra e não existe fronteira
+# ali. Sem isso, um despejo de variáveis de ambiente vazaria a chave de sessão — e quem tem
+# a SECRET_KEY forja sessão de qualquer usuário.
+#
 # O grupo do esquema (Bearer/Basic/...) existe para que o token depois dele também seja
-# mascarado — sem ele, só a palavra "Bearer" seria redigida e o segredo vazaria.
+# mascarado; sem ele, só a palavra "Bearer" seria redigida e o segredo passaria.
 _SECRET_PATTERN = re.compile(
-    r"(?i)\b(password|passwd|senha|token|secret|api[_-]?key|authorization|cookie)"
+    r"(?i)([\w.\-]*(?:password|passwd|senha|token|secret|api[_-]?key|authorization|cookie)"
+    r"[\w.\-]*)"
     r"(\"?\s*[:=]\s*\"?)"
     r"(?:(?:bearer|basic|token|jwt)\s+)?"
     r"([^\s,;\"'}]+)"
@@ -73,7 +81,9 @@ class RedactSecretsFilter(logging.Filter):
         if record.args:
             record.args = self._redact_args(record.args)
         for key, value in list(record.__dict__.items()):
-            if key.lower() in _SENSITIVE_KEYS:
+            # Comparação por conteúdo, não por igualdade: um extra chamado `secret_key` ou
+            # `user_token` carrega segredo tanto quanto `secret` ou `token`.
+            if any(sensivel in key.lower() for sensivel in _SENSITIVE_KEYS):
                 record.__dict__[key] = REDACTED
             elif isinstance(value, str) and key not in _RESERVED_ATTRS:
                 record.__dict__[key] = redact(value)
@@ -83,7 +93,12 @@ class RedactSecretsFilter(logging.Filter):
     def _redact_args(args):
         if isinstance(args, dict):
             return {
-                k: (REDACTED if str(k).lower() in _SENSITIVE_KEYS else v) for k, v in args.items()
+                k: (
+                    REDACTED
+                    if any(sensivel in str(k).lower() for sensivel in _SENSITIVE_KEYS)
+                    else v
+                )
+                for k, v in args.items()
             }
         return tuple(redact(a) if isinstance(a, str) else a for a in args)
 

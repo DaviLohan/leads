@@ -36,11 +36,18 @@ from dataclasses import dataclass, field
 
 from django.conf import settings
 from django.contrib.postgres.search import TrigramSimilarity
+from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 
 from apps.companies.models import Company, CompanyContact, CompanyWebsite
 from apps.core.text import normalize_name
 from apps.geography.models import City
+
+# Limiar do operador `%` do pg_trgm (`show_limit()`), que é o corte grosso indexado. Nosso
+# limiar fino precisa ser **maior ou igual** a ele: se ficar abaixo, o `%` descartaria antes
+# candidatos que o corte fino aceitaria — e a dedup passaria a perder empresas em silêncio,
+# que é o pior modo de falhar deste subsistema.
+LIMIAR_DO_OPERADOR_TRIGRAMA = 0.3
 
 
 class MatchType(models.TextChoices):
@@ -207,15 +214,35 @@ def _por_telefone(candidate: CompanyCandidate) -> Resolution | None:
 def _por_nome(candidate: CompanyCandidate) -> Resolution | None:
     """Similaridade por trigrama, sempre dentro do município.
 
-    O cálculo acontece no Postgres, com o índice GIN de `normalized_name`. Trazer os nomes
-    para o Python e comparar aqui seria O(n²) sobre a tabela inteira — o erro que a
-    PROJECT_PLAN §3.5 manda evitar.
+    Dois cortes, e a ordem importa:
+
+    1. `__trigram_similar` gera o operador `%`, que é **o único que usa o índice GIN** de
+       `normalized_name`. Ele corta grosso, pelo limiar do próprio Postgres.
+    2. `TrigramSimilarity` calcula a nota exata sobre o punhado que sobrou, e o limiar do
+       banco (`DEDUP_NAME_SIMILARITY_POSSIBLE`) faz o corte fino.
+
+    Filtrar direto por `similarity(...) >= x` — que era o que este código fazia — não usa
+    índice nenhum: o planejador varre a tabela e calcula a função linha a linha. Com o
+    recorte por município isso passa despercebido em Londrina e para de passar em São Paulo,
+    que é exatamente o regime que a PROJECT_PLAN §3.5 manda não deixar acontecer.
     """
     if candidate.city is None or not candidate.normalized_name:
         return None
 
+    limiar = float(settings.DEDUP_NAME_SIMILARITY_POSSIBLE)
+    if limiar < LIMIAR_DO_OPERADOR_TRIGRAMA:
+        # Alto e cedo. Silenciar aqui faria a dedup parar de achar duplicatas sem que
+        # nenhum teste nem log acusasse — e duplicata que não aparece vira ligação repetida
+        # para o mesmo cliente.
+        raise ImproperlyConfigured(
+            f"DEDUP_NAME_SIMILARITY_POSSIBLE ({limiar}) está abaixo do limiar do operador "
+            f"de trigrama ({LIMIAR_DO_OPERADOR_TRIGRAMA}). O corte indexado descartaria "
+            "candidatos antes do corte fino. Suba o limiar ou ajuste `set_limit()` no banco."
+        )
+
     melhor = (
         _na_cidade(candidate.city)
+        .filter(normalized_name__trigram_similar=candidate.normalized_name)
         .annotate(similaridade=TrigramSimilarity("normalized_name", candidate.normalized_name))
         .filter(similaridade__gte=settings.DEDUP_NAME_SIMILARITY_POSSIBLE)
         .order_by("-similaridade")

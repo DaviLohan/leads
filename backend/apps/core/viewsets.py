@@ -18,8 +18,20 @@ class TenantViewSet(viewsets.ModelViewSet):
     """
 
     def get_organization(self):
+        """A organização da sessão. Levanta se não houver — exceto na geração de schema.
+
+        O drf-spectacular instancia a view **sem request** só para descobrir qual é o model.
+        Levantar ali quebra `manage.py spectacular` e, com ele, o `check --deploy` da CI.
+
+        Devolver `None` nesse caso não afrouxa nada: `for_organization(None)` já devolve
+        `none()` por projeto, então o caminho seguro é o mesmo de sempre. E fica aqui, e não
+        em cada viewset, porque toda subclasse chama este método — inclusive as que
+        sobrescrevem `get_queryset`, que são a maioria.
+        """
         organization = getattr(self.request, "organization", None)
         if organization is None:
+            if getattr(self, "swagger_fake_view", False):
+                return None
             raise PermissionDenied("Nenhuma organização ativa para esta sessão.")
         return organization
 

@@ -113,6 +113,10 @@ make seed        # dados fictícios de desenvolvimento
 - **App novo com tasks exige reiniciar o worker.** O `autodiscover_tasks` roda no boot; sem
   restart o worker responde `Received unregistered task` e os jobs ficam parados em
   `SCHEDULED`, sem erro visível no lado de quem disparou.
+- **Índice de trigrama só é usado pelo operador `%`.** `similarity(x, y) >= 0.6` faz o
+  planejador varrer a tabela e calcular linha a linha. Em `dedup._por_nome` o corte grosso é
+  `__trigram_similar` (indexado) e o fino é `TrigramSimilarity` sobre o que sobrou. O lookup
+  exige `django.contrib.postgres` no `INSTALLED_APPS`.
 - **Não rode `npm run build` no container que serve `next dev`.** O build de produção
   sobrescreve o `.next/` que o servidor de desenvolvimento está usando, e todas as rotas
   passam a dar 500 com `ENOENT: vendor-chunks/next.js` — erro que não parece ter relação
@@ -151,9 +155,13 @@ Segurança → Integridade dos dados → Manutenibilidade → Clareza → Testab
 
 ## Estado atual
 
-Etapas 1 a 13 concluídas (de 14). O produto roda de ponta a ponta **pelo navegador**:
-login → Radar → busca → empresas analisadas → diagnóstico → prospecção → funil até venda
-fechada. Próxima: **Etapa 14 — hardening (segurança, performance, índices, N+1, throttling)**.
+**As 14 etapas do roteiro estão concluídas.** O produto roda de ponta a ponta pelo
+navegador: login → Radar → busca → empresas analisadas → diagnóstico → prospecção → funil
+até venda fechada.
+
+Pendências conhecidas, fora do roteiro: a CI nunca executou (conta do GitHub travada por
+faturamento), e o repositório está público desde 14/08 — foi para destravar o Actions, o que
+não funcionou, e dá para reverter.
 Roadmap completo em `docs/PROJECT_PLAN.md`.
 
 Não existe cadastro público: a primeira organização nasce de
@@ -332,3 +340,14 @@ coluna, que é como se varre uma lista de ligações com o olho.
 
 Português em toda parte, inclusive no código do frontend: os nomes das telas e componentes
 são os do domínio (`Casca`, `BarraDeLacunas`, `Regua`), como no backend.
+
+## O que a Etapa 14 mediu
+
+Medido, não presumido — e o método importa porque com dezenas de linhas o planejador escolhe
+seq scan e está **certo**:
+
+- **N+1**: contagem de consultas com 10 e depois 30 registros. Ficou plana em todos os
+  endpoints (10, 9, 6, 5, 4), então não há N+1.
+- **Índices**: `EXPLAIN` com `enable_seqscan = off`, que obriga o planejador a revelar qual
+  índice usaria — ou admitir que não há nenhum. Foi assim que apareceu o único furo real.
+- **Redação de log**: cada padrão testado com o segredo dentro, conferindo que ele some.

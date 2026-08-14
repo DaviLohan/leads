@@ -231,3 +231,38 @@ def test_ordem_dos_sinais(fazer_empresa, londrina):
 
     sem_cnpj = CompanyCandidate(name="B", domain="x.com.br", city=londrina)
     assert resolve(sem_cnpj).company == por_dominio
+
+
+class TestCorteIndexado:
+    """O corte grosso usa o índice GIN; o fino usa a nota exata."""
+
+    def test_usa_o_indice_gin(self, fazer_empresa, londrina):
+        """`similarity(...) >= x` não usa índice: o planejador varre e calcula linha a linha.
+
+        Passa despercebido em Londrina e para de passar em São Paulo — que é o regime que a
+        PROJECT_PLAN §3.5 manda não deixar acontecer.
+        """
+        from django.db import connection
+
+        from apps.companies.models import Company
+
+        fazer_empresa("Clínica Odontológica São José", londrina)
+        with connection.cursor() as cursor:
+            cursor.execute("SET enable_seqscan = off")
+
+        plano = Company.objects.filter(
+            normalized_name__trigram_similar="clinica odontologica sao jose"
+        ).explain()
+
+        assert "company_nome_trgm_idx" in plano, plano
+
+    def test_recusa_limiar_abaixo_do_corte_indexado(self, fazer_empresa, londrina):
+        """Limiar fino menor que o do operador faria a dedup perder empresas em silêncio."""
+        from django.core.exceptions import ImproperlyConfigured
+        from django.test import override_settings
+
+        fazer_empresa("Clínica Odontológica São José", londrina)
+
+        with override_settings(DEDUP_NAME_SIMILARITY_POSSIBLE=0.1):
+            with pytest.raises(ImproperlyConfigured, match="abaixo do limiar"):
+                resolve(CompanyCandidate(name="Clinica Odontologica Sao Jose", city=londrina))

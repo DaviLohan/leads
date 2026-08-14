@@ -34,6 +34,10 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.gis",
+    # Registra os lookups do Postgres (`__trigram_similar`, `__unaccent`). Sem o app, o
+    # `TrigramSimilarity` até funciona — é só uma função —, mas o operador `%`, que é o
+    # único capaz de usar o índice GIN, fica indisponível. A deduplicação depende dele.
+    "django.contrib.postgres",
     # terceiros
     "rest_framework",
     "corsheaders",
