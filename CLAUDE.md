@@ -2,6 +2,9 @@
 
 > Leia este arquivo **antes de qualquer mudança relevante**. Ele resume o que o projeto é,
 > como está organizado, e o que é proibido. Regras aqui vencem preferências pessoais.
+>
+> Aqui estão as **regras**. O **mapa** — modelo de dados completo, superfície da API, telas,
+> e a tabela "onde mexer para cada tipo de mudança" — está em `docs/BRIEFING.md`.
 
 ## O que é
 
@@ -117,6 +120,14 @@ make seed        # dados fictícios de desenvolvimento
   planejador varrer a tabela e calcular linha a linha. Em `dedup._por_nome` o corte grosso é
   `__trigram_similar` (indexado) e o fino é `TrigramSimilarity` sobre o que sobrou. O lookup
   exige `django.contrib.postgres` no `INSTALLED_APPS`.
+- **Build de produção com a mesma tag da imagem de dev apaga o ambiente de desenvolvimento.**
+  `docker compose -f docker-compose.yml -f docker-compose.prod.yml build` reaproveitava a tag
+  `leads-frontend`/`leads-backend` e sobrescrevia a imagem de dev — o frontend passava a ser
+  o estágio `runner` (uid 1001, sem o binário `next`), e o sintoma aparecia só no próximo
+  `up`: `sh: next: not found` ou `EACCES` no `.next`. Cada serviço do `docker-compose.prod.yml`
+  agora tem `image: ...-prod`. Se acontecer de novo:
+  `docker compose build frontend && docker compose up -d -V frontend` — o `-V` é obrigatório,
+  senão os volumes anônimos (`node_modules`, `.next`) continuam com o conteúdo antigo.
 - **Não rode `npm run build` no container que serve `next dev`.** O build de produção
   sobrescreve o `.next/` que o servidor de desenvolvimento está usando, e todas as rotas
   passam a dar 500 com `ENOENT: vendor-chunks/next.js` — erro que não parece ter relação
@@ -130,6 +141,9 @@ make seed        # dados fictícios de desenvolvimento
 3. Checar impacto: segurança, tenancy, índices, N+1, custo de API externa.
 4. Implementar na camada certa (service, não view).
 5. `make test` e `make lint` — e reportar a saída real, nunca "deve funcionar".
+   **Os dois não são o portão inteiro:** a CI ainda roda `makemigrations --check`,
+   `pytest --cov` (piso 89%), `prettier --check` e `check --deploy --fail-level WARNING`.
+   Este último já falhou com o lint local passando — comandos prontos em `docs/BRIEFING.md` §2.
    Se mexeu em dependência, rode **também** no `celery_worker`: passar só no `backend`
    esconde imagem desatualizada.
 6. Migration revisada (nada de editar banco à mão).
@@ -155,9 +169,11 @@ Segurança → Integridade dos dados → Manutenibilidade → Clareza → Testab
 
 ## Estado atual
 
-**As 14 etapas do roteiro estão concluídas.** O produto roda de ponta a ponta pelo
-navegador: login → Radar → busca → empresas analisadas → diagnóstico → prospecção → funil
-até venda fechada.
+**As 14 etapas do roteiro estão concluídas**, e depois delas veio a **reestruturação de
+produto** (`docs/PRODUCT_REDESIGN_PLAN.md`), que reorganizou a experiência em torno do fluxo
+comercial: login → Empresas (filtrar) → telefone na linha → lista ou CRM → funil até venda
+fechada. Antes dela, o telefone — o dado mais importante do produto — não existia em lugar
+nenhum da interface, e `Company` não tinha endpoint.
 
 Pendências conhecidas, fora do roteiro: a CI nunca executou (conta do GitHub travada por
 faturamento), e o repositório está público desde 14/08 — foi para destravar o Actions, o que
@@ -323,6 +339,38 @@ pessoa reaparece com outro `company_id` na próxima busca.
 
 Antes de usar: `python manage.py seed_pipeline`.
 
+## A tela Empresas (o centro do produto)
+
+`GET /api/v1/companies/` é o endpoint que sustenta quase tudo: tabela de empresas, listas,
+exportação e o painel. Ele é **global** (ADR-0007) — o que é do tenant são as colunas
+`lead_id`/`lead_stage_*`, anotadas a partir da organização da sessão.
+
+`companies/queries.py` é o **único** construtor desse queryset. Três coisas não são detalhe:
+
+- **Nada ali importa `analysis`, `crm` ou `providers`.** Os dados desses apps entram pelo
+  nome da relação reversa (`score`, `opportunities`, `scans`, `leads`), que as FKs *deles*
+  criaram. Acoplamento por string resolvido pelo ORM mantém a ordem de dependência intacta.
+  O preço são dois literais de status (`OPPORTUNITY_OPEN`, `SCAN_BROKEN`), guardados por
+  teste que mora em `analysis` — o app de cima, que pode importar o de baixo.
+- **Tudo é `Subquery`/`FilteredRelation`.** Contagem de consultas não cresce com o número de
+  linhas; há teste medindo com 10 e com 30 (o método da Etapa 14).
+- **`isnull` sobre alias de `FilteredRelation` não vira `IS NULL`.** Filtrar "ainda não é meu
+  lead" é pela anotação (`lead_id__isnull`), nunca pelo alias — pelo alias devolve a tabela
+  inteira em silêncio.
+
+Filtro multivalorado corta por `Exists` (sem `distinct`), exceto quando o dado mora em app
+superior — aí é `JOIN` + `distinct`, porque `Exists` exigiria import proibido.
+
+**Lista não é lead.** `CompanyList` separa um lote para trabalhar depois; `Lead` é relação
+comercial, abre histórico e passa pela supressão da LGPD. O lote em massa
+(`POST /crm/leads/bulk/`) devolve `criados`, `ja_existiam` e `suprimidos` separados: um
+opt-out no meio de 20 não pode passar por estar acompanhado.
+
+Exportação (`companies/export.py`) tem teto de 5.000 linhas, escreve no CSV que truncou,
+grava `AuditLog.Action.EXPORT` e escapa por `csv.writer`. O rótulo do site sai por extenso —
+"Site oficial não identificado nas fontes analisadas" —, porque no CSV a frase deixa o
+produto e vira "verdade" na mão de terceiros.
+
 ## Frontend
 
 A tese do design é a mesma do produto: **a ausência é o ativo**. O âmbar — única cor forte da
@@ -339,7 +387,22 @@ corpo, Azeret Mono em todo número — score, telefone, código IBGE e contagem 
 coluna, que é como se varre uma lista de ligações com o olho.
 
 Português em toda parte, inclusive no código do frontend: os nomes das telas e componentes
-são os do domínio (`Casca`, `BarraDeLacunas`, `Regua`), como no backend.
+são os do domínio (`Casca`, `BarraDeLacunas`, `Regua`), como no backend. **As rotas também**
+— `/empresas`, `/leads`, `/listas`, `/buscas`. `/crm` redireciona para `/leads` no
+`next.config.ts`: renomear rota sem redirecionar quebra o usuário, não o código.
+
+Navegação: `Painel · Empresas · Leads · Listas · Buscas · Configurações`. Leads e funil são
+**uma seção com duas vistas** (`/leads?vista=funil`), não dois itens de menu — são o mesmo
+dado, e separá-los criaria dois lugares para procurar o mesmo lead.
+
+Os filtros da tela Empresas vivem na URL, com **os mesmos nomes da API** (`uf`, `category`,
+`has_phone`, `site`, `score_min`, `in_crm`): a query string da tela e a da requisição são a
+mesma coisa, então não existe tabela de tradução para esquecer de atualizar.
+
+**Telefone é dado de primeira classe** (`components/telefone.tsx`): aparece na tabela de
+empresas, na de leads e na ficha, com copiar de um clique. O botão de WhatsApp só existe
+quando há contato do tipo `WHATSAPP` — celular não é WhatsApp presumido, nem na tela nem no
+banco. A máscara só é aplicada a número brasileiro reconhecido; o resto sai como veio.
 
 ## O que a Etapa 14 mediu
 
