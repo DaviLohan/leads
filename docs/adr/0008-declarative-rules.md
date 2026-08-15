@@ -20,15 +20,17 @@ Divisão de responsabilidade:
 - **O código** define *como* avaliar. Predicados nomeados e registrados:
 
 ```python
-@rule("no_website")
-def no_website(ctx: CompanyContext, params: dict) -> bool:
-    return ctx.website_status == WebsiteStatus.NOT_FOUND
+@rule("sem_site")
+def sem_site(ctx: CompanyContext, params: dict) -> bool:
+    # Exige que a análise tenha acontecido: enquanto for NOT_CHECKED, a resposta
+    # honesta é "ainda não sei", não "não tem".
+    return not ctx.has_website and ctx.website_status == "NOT_FOUND"
 ```
 
 - **O banco** define *se* a regra está ativa, *quanto* vale e com *quais parâmetros*:
 
 ```
-ScoreRule(code="no_website", points=30, is_active=True, params={})
+ScoreRule(code="sem_site", points=30, is_active=True, params={})
 ScoreRule(code="min_reviews", points=10, is_active=True, params={"threshold": 20})
 ```
 
