@@ -91,7 +91,7 @@ export default function Entrar() {
           cheio de âmbar é o que falta, e é por isso que existe alguém para quem vender. */}
       <section className="bg-papel-fundo hidden flex-col justify-center gap-8 px-16 lg:flex">
         <p className="font-display text-tinta max-w-md text-3xl leading-tight font-black tracking-tight">
-          A maioria dos negócios brasileiros não tem site.
+          A maioria dos negócios brasileiros ainda tem presença digital incompleta.
           <span className="text-tinta-fraca font-bold"> Este é o mapa de onde eles estão.</span>
         </p>
 
