@@ -410,8 +410,11 @@ banco. A máscara só é aplicada a número brasileiro reconhecido; o resto sai 
 Medido, não presumido — e o método importa porque com dezenas de linhas o planejador escolhe
 seq scan e está **certo**:
 
-- **N+1**: contagem de consultas com 10 e depois 30 registros. Ficou plana em todos os
-  endpoints (10, 9, 6, 5, 4), então não há N+1.
+- **N+1**: contagem de consultas com 10 e depois 30 registros. **A invariante é a planura** —
+  o número não cresce com a quantidade de linhas, e é isso que prova que não há N+1. Os
+  valores absolutos variam com a estrutura de cada tela (e com a sessão, que soma consultas de
+  autenticação a cada requisição), então não ficam fixados aqui de propósito: número em
+  documento envelhece e vira mentira na primeira mudança de serializer.
 - **Índices**: `EXPLAIN` com `enable_seqscan = off`, que obriga o planejador a revelar qual
   índice usaria — ou admitir que não há nenhum. Foi assim que apareceu o único furo real.
 - **Redação de log**: cada padrão testado com o segredo dentro, conferindo que ele some.
