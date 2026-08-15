@@ -45,7 +45,7 @@ jobs:
       DJANGO_SETTINGS_MODULE: config.settings.test
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Instalar GDAL/GEOS (exigidos pelo GeoDjango)
         run: |
@@ -91,7 +91,7 @@ jobs:
         working-directory: frontend
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -121,7 +121,7 @@ jobs:
     steps:
       # Histórico completo: o gitleaks precisa varrer os commits, não só a árvore atual.
       # Segredo que entrou e foi removido depois continua no histórico.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
