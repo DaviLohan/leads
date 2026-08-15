@@ -440,9 +440,10 @@ a experiência em torno desse fluxo.
 - `City.centroid` está nulo de propósito; `City.boundary` não existe;
 - mudança de estágio em massa (mover lead gera `Interaction`, é decisão individual).
 
-**Pendências conhecidas:** a CI nunca executou (conta do GitHub travada por faturamento) e o
-repositório está público desde 14/08 — foi tentativa de destravar o Actions, e dá para
-reverter.
+**Pendências conhecidas:** a CI está configurada mas **nunca completou um passo** — as
+execuções do workflow travam por faturamento (conta do GitHub) antes de iniciar qualquer job,
+e ficam vermelhas em `main`. O repositório está público desde 14/08 — foi tentativa de
+destravar o Actions, e dá para reverter.
 
 ---
 
@@ -478,7 +479,7 @@ O que foi corrigido depois de encontrado:
 |---|---|
 | N+1 medido só em `/companies/` | `/crm/leads/`, `/crm/lists/{id}/companies/` e o painel usam as mesmas subconsultas mais um `prefetch_related`, e **nenhum tem teste de contagem de consultas** |
 | Guarda de AST é parcial | Cobre `rules.py` e `opportunities.py`, não `scoring.py`. Hoje `scoring.py` está limpo, mas nada impede um `eval` entrar ali sem quebrar teste |
-| Produção nunca executou | As settings de produção só passaram pelo `check --deploy`; nada rodou de fato com elas, e a CI nunca executou |
+| Produção nunca executou | As settings de produção só passaram pelo `check --deploy`; nada rodou de fato com elas, e nenhuma execução da CI chegou a iniciar um job (trava por faturamento) |
 | Guard de SSRF só com dublê | Os 44 testes de `test_ssrf.py` passam, todos com substituto de rede. A proteção nunca foi exercida contra um alvo hostil real |
 
 ---

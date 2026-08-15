@@ -175,9 +175,10 @@ comercial: login → Empresas (filtrar) → telefone na linha → lista ou CRM �
 fechada. Antes dela, o telefone — o dado mais importante do produto — não existia em lugar
 nenhum da interface, e `Company` não tinha endpoint.
 
-Pendências conhecidas, fora do roteiro: a CI nunca executou (conta do GitHub travada por
-faturamento), e o repositório está público desde 14/08 — foi para destravar o Actions, o que
-não funcionou, e dá para reverter.
+Pendências conhecidas, fora do roteiro: a CI está configurada mas **nunca completou um
+passo** — as execuções do workflow travam por faturamento (conta do GitHub) antes de iniciar
+qualquer job, e ficam vermelhas em `main`. O repositório está público desde 14/08 — foi para
+destravar o Actions, o que não funcionou, e dá para reverter.
 Roadmap completo em `docs/PROJECT_PLAN.md`.
 
 Não existe cadastro público: a primeira organização nasce de
