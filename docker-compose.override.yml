@@ -19,6 +19,12 @@ services:
   celery_worker:
     volumes:
       - ./backend:/app
+    # O `runserver` do backend recarrega sozinho; o worker do Celery não. Sem isto ele fica
+    # com o código de quando subiu, e o sintoma é o pior possível: a task roda, não dá erro
+    # nenhum, e grava dado pela metade. Já aconteceu duas vezes nesta base.
+    command: >
+      watchmedo auto-restart --directory=/app --pattern=*.py --recursive --
+      celery -A config worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-2}
 
   frontend:
     environment:

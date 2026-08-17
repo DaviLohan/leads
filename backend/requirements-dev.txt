@@ -10,3 +10,6 @@ django-stubs[compatible-mypy]>=5.1,<6.0
 djangorestframework-stubs>=3.15,<4.0
 factory-boy>=3.3,<4.0
 pip-audit>=2.7
+# Reinicia o worker do Celery quando o código muda. Sem isto o processo fica com a versão
+# de quando subiu, e o sintoma é dado gravado pela metade — sem erro nenhum no log.
+watchdog>=4.0

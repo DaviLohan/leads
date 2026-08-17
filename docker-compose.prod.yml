@@ -5,8 +5,13 @@
 # Passar os arquivos com -f impede o carregamento do docker-compose.override.yml, então
 # aqui não existe código montado como volume nem porta de banco publicada.
 
+# Cada serviço marca a imagem com nome próprio (`-prod`). Sem isso o build de produção
+# reaproveita a tag do dev e a sobrescreve — o ambiente de desenvolvimento fica sem as
+# dependências de dev e só quebra na próxima vez que alguém sobe, longe da causa.
+
 services:
   backend:
+    image: leads-backend-prod
     build:
       context: ./backend
       args:
@@ -22,6 +27,7 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings.production
 
   celery_worker:
+    image: leads-celery-worker-prod
     build:
       context: ./backend
       args:
@@ -32,6 +38,7 @@ services:
   # `celery_beat` volta junto com a primeira tarefa periódica (ver docker-compose.yml).
 
   frontend:
+    image: leads-frontend-prod
     build:
       context: ./frontend
       target: runner
