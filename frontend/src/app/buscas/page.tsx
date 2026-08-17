@@ -141,7 +141,15 @@ function NovaBusca({
     let valido = true;
     prever(criterios())
       .then((r) => valido && setPrevisao(r))
-      .catch(() => valido && setPrevisao(null));
+      // Engolir esta falha em silêncio esconde duas coisas ao mesmo tempo: some a frase que
+      // diz o alcance **e** o botão volta a liberar, porque o impedimento depende da previsão.
+      // O usuário via um formulário aparentemente normal que falhava no envio. Achado num
+      // navegador de verdade, com a rede à vista — não dava para ver de outro jeito.
+      .catch((e) => {
+        if (!valido) return;
+        console.error("Previsão da busca falhou:", e);
+        setPrevisao(null);
+      });
     return () => {
       valido = false;
     };
@@ -191,10 +199,16 @@ function NovaBusca({
       }}
       className="border-linha bg-papel-alto rounded-md border p-5"
     >
-      <div className="flex flex-wrap items-end gap-4">
+      {/* `items-end` alinha o fundo de cada campo, então **nenhum deles pode ter mensagem
+          embaixo**: uma linha de ajuda em um só empurra o controle dele para cima e a fileira
+          inteira desalinha. Por isso "vazio = estado inteiro" virou o texto de espaço reservado
+          do próprio campo, onde a informação é lida no momento em que importa.
+          E a fileira tem teto de largura: três campos esticados em 1240px de monitor grande é
+          o que fazia um formulário curto parecer desmontado. */}
+      <div className="flex max-w-5xl flex-wrap items-end gap-x-4 gap-y-3">
         <Selecao
           rotulo="Estado"
-          className="w-56"
+          className="w-44"
           valor={uf}
           aoMudar={trocarEstado}
           required
@@ -204,20 +218,21 @@ function NovaBusca({
 
         <SelecaoMultipla
           rotulo="Municípios"
-          className="min-w-72 flex-1"
+          className="min-w-64 flex-1"
           valores={municipios}
           aoMudar={setMunicipios}
           aoBuscar={procurarMunicipio}
           rotulosConhecidos={nomesDeMunicipio}
           opcoes={[]}
           disabled={!uf}
-          espaco={uf ? "Digite para procurar" : "Escolha o estado primeiro"}
-          ajuda="Vazio = estado inteiro"
+          // O espaço reservado diz o alcance atual, não uma instrução genérica: com o estado
+          // escolhido e nenhuma ficha, a busca cobre o estado inteiro — e é isso que se lê.
+          espaco={uf ? "Todos — digite para recortar" : "Escolha o estado primeiro"}
         />
 
         <Selecao
           rotulo="Ramo"
-          className="w-64"
+          className="w-72"
           valor={categoria}
           aoMudar={setCategoria}
           required

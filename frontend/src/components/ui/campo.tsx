@@ -485,11 +485,7 @@ export function SelecaoMultipla({
       <div ref={raiz} className="relative" onKeyDown={aoTeclar}>
         {/* A caixa cresce com as fichas, então não usa `.entrada` (altura fixa de 36px) — mas
             repete borda, fundo e raio para ser o mesmo controle aos olhos. */}
-        <div
-          className={`border-linha bg-papel-alto focus-within:border-acao focus-within:shadow-[0_0_0_3px_var(--color-acao-fraca)] flex min-h-[var(--altura-controle)] flex-wrap items-center gap-1 rounded-sm border px-1.5 py-1 transition-colors ${
-            disabled ? "bg-papel-fundo cursor-not-allowed" : ""
-          }`}
-        >
+        <div className="entrada-fichas" data-desabilitado={disabled || undefined}>
           {valores.map((valor) => (
             <span
               key={valor}

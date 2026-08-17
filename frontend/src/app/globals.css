@@ -205,6 +205,45 @@ textarea.entrada {
   border-radius: var(--radius-sm);
 }
 
+/* A caixa de fichas da escolha múltipla. Mesma pele de `.entrada` — borda, fundo, raio, anel
+   de foco —, mas com altura mínima em vez de fixa: ela cresce quando as fichas passam de uma
+   linha. Fica aqui, e não em utilitários na tela, porque o anel de foco tem valor de sombra e
+   valor visual não mora em componente. */
+.entrada-fichas {
+  display: flex;
+  min-height: var(--altura-controle);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--color-linha);
+  background: var(--color-papel-alto);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.375rem;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.entrada-fichas:hover:not([data-desabilitado]) {
+  border-color: var(--color-linha-forte);
+}
+
+.entrada-fichas:focus-within {
+  border-color: var(--color-acao);
+  box-shadow: 0 0 0 3px var(--color-acao-fraca);
+}
+
+.entrada-fichas[data-desabilitado] {
+  background: var(--color-papel-fundo);
+  cursor: not-allowed;
+}
+
+/* O anel de foco é da caixa. Sem isto o campo de texto de dentro ganha o contorno global por
+   cima, e o controle aparece com dois anéis concêntricos. */
+.entrada-fichas input:focus-visible {
+  outline: none;
+}
+
 /* Barra de rolagem da lista de opções: fina e nas cores do produto. A do sistema é o que mais
    denuncia um menu que não é do aplicativo. */
 .rolagem-fina {
