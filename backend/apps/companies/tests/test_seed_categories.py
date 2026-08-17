@@ -45,6 +45,17 @@ class TestCatalogo:
                 len(tag) == 1
             ), f"{categoria.slug} tem {len(tag)} tags; várias viram AND no Overpass QL"
 
+    def test_nenhuma_tag_repetida_entre_categorias(self):
+        """Duas categorias com a mesma tag são duas linhas de menu que devolvem exatamente a
+        mesma lista — o usuário escolhe uma, desconfia, escolhe a outra e vê o mesmo.
+
+        Foi o que impediu "Concessionárias" de virar categoria própria: no OSM `shop=car` é a
+        tag de venda de carro, sem separar concessionária de revenda de usado.
+        """
+        tags = [tuple(sorted(tag.items())) for _, _, tag in CATEGORIAS]
+
+        assert len(tags) == len(set(tags))
+
 
 class TestAtualizacao:
     def test_corrige_tag_errada_em_banco_ja_semeado(self):

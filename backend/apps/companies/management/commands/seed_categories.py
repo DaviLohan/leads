@@ -37,7 +37,13 @@ CATEGORIAS: list[tuple[str, str, dict[str, str]]] = [
     ("calcados", "Calçados", {"shop": "shoes"}),
     ("joalherias", "Joalherias", {"shop": "jewelry"}),
     # Automotivo
-    ("carros", "Lojas de carros", {"shop": "car"}),
+    # O nome cobre os dois porque o OSM não os separa: `shop=car` é a tag de venda de carro,
+    # concessionária de marca ou revenda de usado. A distinção existiria em `second_hand`,
+    # que quase ninguém preenche no Brasil — medido em 17/08/2026, Cascavel tinha 7 lojas e
+    # zero com a tag. Categoria filtrando por ela voltaria vazia; duas categorias sobre a
+    # mesma tag seriam duas linhas de menu com resultado idêntico.
+    ("carros", "Concessionárias e revendas de carros", {"shop": "car"}),
+    ("locadoras", "Locadoras de carros", {"amenity": "car_rental"}),
     ("autopecas", "Autopeças", {"shop": "car_parts"}),
     ("oficinas", "Oficinas mecânicas", {"shop": "car_repair"}),
     ("motos", "Motos", {"shop": "motorcycle"}),
