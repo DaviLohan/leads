@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { Casca } from "@/components/casca";
 import { Botao } from "@/components/ui/botao";
+import { Campo, Selecao } from "@/components/ui/campo";
 import { CabecalhoDaPagina } from "@/components/ui/cabecalho";
 import { Erro, Esqueleto, Vazio } from "@/components/ui/superficie";
 import { errorMessage, getMe, ROLE_LABELS, type Me } from "@/lib/auth";
@@ -46,9 +47,7 @@ export default function Configuracoes() {
       <CabecalhoDaPagina titulo="Configurações" />
 
       <section className="mb-10">
-        <h2 className="text-tinta-fraca mb-3 text-xs font-semibold tracking-[0.1em] uppercase">
-          Organização
-        </h2>
+        <h2 className="rotulo-secao mb-3">Organização</h2>
         <dl className="border-linha bg-papel-alto grid gap-x-8 gap-y-3 rounded-lg border p-5 text-sm sm:grid-cols-3">
           <Item rotulo="Nome" valor={me?.organization?.name ?? "—"} />
           <Item rotulo="Seu acesso" valor={me?.role ? (ROLE_LABELS[me.role] ?? me.role) : "—"} />
@@ -57,9 +56,7 @@ export default function Configuracoes() {
       </section>
 
       <section>
-        <h2 className="text-tinta-fraca mb-1 text-xs font-semibold tracking-[0.1em] uppercase">
-          Não contatar
-        </h2>
+        <h2 className="rotulo-secao mb-1">Não contatar</h2>
         <p className="text-tinta-fraca mb-4 max-w-2xl text-sm">
           Quem pediu para não ser abordado. Vale por identificador, não por empresa: o mesmo
           telefone bloqueia a pessoa mesmo que ela reapareça em outra busca. Registrar encerra na
@@ -141,50 +138,40 @@ function Formulario({ aoRegistrar }: { aoRegistrar: () => void }) {
           setEnviando(false);
         }
       }}
-      className="border-linha bg-papel-alto flex flex-wrap items-end gap-3 rounded-lg border p-4"
+      className="border-linha bg-papel-alto flex flex-wrap items-end gap-3 rounded-md border p-4"
     >
-      <label className="flex flex-col gap-1">
-        <span className="text-tinta-fraca text-xs font-medium">Tipo</span>
-        <select
-          value={kind}
-          onChange={(e) => setKind(e.target.value)}
-          className="border-linha bg-papel-alto rounded border px-2.5 py-1.5 text-sm"
-        >
-          {TIPOS.map(([valor, rotulo]) => (
-            <option key={valor} value={valor}>
-              {rotulo}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Selecao
+        rotulo="Tipo"
+        className="w-44"
+        valor={kind}
+        aoMudar={setKind}
+        opcoes={TIPOS.map(([valor, rotulo]) => ({ valor, rotulo }))}
+      />
 
-      <label className="flex flex-1 flex-col gap-1">
-        <span className="text-tinta-fraca text-xs font-medium">Identificador</span>
-        <input
-          value={valor}
-          onChange={(e) => setValor(e.target.value)}
-          required
-          placeholder={exemplo}
-          className="dados border-linha rounded border px-3 py-1.5 text-sm"
-        />
-      </label>
+      <Campo
+        rotulo="Identificador"
+        className="flex-1"
+        mono
+        value={valor}
+        onChange={(e) => setValor(e.target.value)}
+        required
+        placeholder={exemplo}
+      />
 
-      <label className="flex flex-1 flex-col gap-1">
-        <span className="text-tinta-fraca text-xs font-medium">Motivo</span>
-        <input
-          value={motivo}
-          onChange={(e) => setMotivo(e.target.value)}
-          placeholder="Pediu para não ser contatado"
-          className="border-linha rounded border px-3 py-1.5 text-sm"
-        />
-      </label>
+      <Campo
+        rotulo="Motivo"
+        className="flex-1"
+        value={motivo}
+        onChange={(e) => setMotivo(e.target.value)}
+        placeholder="Pediu para não ser contatado"
+      />
 
       <Botao type="submit" disabled={enviando}>
         {enviando ? "…" : "Registrar"}
       </Botao>
 
       {erro && <Erro mensagem={erro} className="basis-full" />}
-      {feito && <p className="text-acao basis-full text-sm">{feito}</p>}
+      {feito && <p className="text-acao text-apoio basis-full">{feito}</p>}
     </form>
   );
 }

@@ -166,22 +166,7 @@ body {
     box-shadow 120ms ease;
 }
 
-/* `select` precisa de espaço para a seta; `textarea` não tem altura fixa. */
-select.entrada {
-  padding-right: 1.75rem;
-  appearance: none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--color-tinta-fraca) 50%),
-    linear-gradient(135deg, var(--color-tinta-fraca) 50%, transparent 50%);
-  background-position:
-    calc(100% - 15px) 50%,
-    calc(100% - 10px) 50%;
-  background-size:
-    5px 5px,
-    5px 5px;
-  background-repeat: no-repeat;
-}
-
+/* `textarea` não tem altura fixa. */
 textarea.entrada {
   height: auto;
   padding: 0.5rem 0.625rem;
@@ -211,12 +196,20 @@ textarea.entrada {
 }
 
 /* Foco visível sempre — o teclado é como se percorre uma lista longa depressa. O campo tem
-   o próprio anel (borda + halo), então não leva o contorno duplo. */
-:where(a, button, select, textarea, [tabindex]):focus-visible,
-input:not(.entrada):focus-visible {
+   o próprio anel (borda + halo), então não leva o contorno duplo. A exclusão é de `.entrada`
+   inteira, e não só de `input`: o gatilho de `Selecao` é um `<button>` com essa classe, e sem
+   isto ganharia anel e contorno ao mesmo tempo. */
+:where(a, button, select, textarea, input, [tabindex]):not(.entrada):focus-visible {
   outline: 2px solid var(--color-acao);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
+}
+
+/* Barra de rolagem da lista de opções: fina e nas cores do produto. A do sistema é o que mais
+   denuncia um menu que não é do aplicativo. */
+.rolagem-fina {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-linha-forte) transparent;
 }
 
 /* A única animação do produto: o aviso entrando. 140ms, deslocamento de 4px — o suficiente

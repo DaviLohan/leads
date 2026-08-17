@@ -89,49 +89,43 @@ export function PainelDeFiltros({
         <Grupo titulo="Onde">
           <Selecao
             rotulo="Estado"
-            value={form.uf ?? ""}
-            onChange={(e) => {
-              definir("uf", e.target.value);
+            valor={form.uf ?? ""}
+            aoMudar={(escolhido) => {
+              definir("uf", escolhido);
               definir("city", undefined);
             }}
-          >
-            <option value="">Todos os estados</option>
-            {estados.map((estado) => (
-              <option key={estado.id} value={estado.uf}>
-                {estado.uf} — {estado.name}
-              </option>
-            ))}
-          </Selecao>
+            vazio="Todos os estados"
+            opcoes={estados.map((estado) => ({
+              valor: estado.uf,
+              rotulo: `${estado.uf} — ${estado.name}`,
+            }))}
+          />
 
           <Selecao
             rotulo="Cidade"
-            value={form.city ?? ""}
-            onChange={(e) => definir("city", e.target.value)}
+            valor={form.city ?? ""}
+            aoMudar={(escolhido) => definir("city", escolhido)}
             disabled={!form.uf}
             ajuda={!form.uf ? "Escolha o estado primeiro" : undefined}
-          >
-            <option value="">{form.uf ? "Todas as cidades" : "—"}</option>
-            {municipios.map((municipio) => (
-              <option key={municipio.id} value={municipio.id}>
-                {municipio.name}
-              </option>
-            ))}
-          </Selecao>
+            vazio={form.uf ? "Todas as cidades" : "—"}
+            opcoes={municipios.map((municipio) => ({
+              valor: municipio.id,
+              rotulo: municipio.name,
+            }))}
+          />
         </Grupo>
 
         <Grupo titulo="O quê">
           <Selecao
             rotulo="Segmento"
-            value={form.category ?? ""}
-            onChange={(e) => definir("category", e.target.value)}
-          >
-            <option value="">Todos os segmentos</option>
-            {categorias.map((categoria) => (
-              <option key={categoria.id} value={categoria.slug}>
-                {categoria.name}
-              </option>
-            ))}
-          </Selecao>
+            valor={form.category ?? ""}
+            aoMudar={(escolhido) => definir("category", escolhido)}
+            vazio="Todos os segmentos"
+            opcoes={categorias.map((categoria) => ({
+              valor: categoria.slug,
+              rotulo: categoria.name,
+            }))}
+          />
 
           <Campo
             rotulo="Nome"
@@ -145,15 +139,16 @@ export function PainelDeFiltros({
         <Grupo titulo="Presença digital">
           <Selecao
             rotulo="Site"
-            value={form.site ?? ""}
-            onChange={(e) => definir("site", e.target.value)}
-          >
-            <option value="">Qualquer situação</option>
-            <option value="not_found">Não identificado nas fontes</option>
-            <option value="broken">Com problemas</option>
-            <option value="found">Identificado</option>
-            <option value="not_checked">Ainda não verificado</option>
-          </Selecao>
+            valor={form.site ?? ""}
+            aoMudar={(escolhido) => definir("site", escolhido)}
+            vazio="Qualquer situação"
+            opcoes={[
+              { valor: "not_found", rotulo: "Não identificado nas fontes" },
+              { valor: "broken", rotulo: "Com problemas" },
+              { valor: "found", rotulo: "Identificado" },
+              { valor: "not_checked", rotulo: "Ainda não verificado" },
+            ]}
+          />
         </Grupo>
 
         <Grupo titulo="Contato">
@@ -201,23 +196,25 @@ export function PainelDeFiltros({
 
           <Selecao
             rotulo="Prospecção"
-            value={String(form.in_crm ?? "")}
-            onChange={(e) => definir("in_crm", e.target.value)}
-          >
-            <option value="">Todas</option>
-            <option value="false">Ainda não abordadas</option>
-            <option value="true">Já no meu funil</option>
-          </Selecao>
+            valor={String(form.in_crm ?? "")}
+            aoMudar={(escolhido) => definir("in_crm", escolhido)}
+            vazio="Todas"
+            opcoes={[
+              { valor: "false", rotulo: "Ainda não abordadas" },
+              { valor: "true", rotulo: "Já no meu funil" },
+            ]}
+          />
 
           <Selecao
             rotulo="Ordenar por"
-            value={form.ordering ?? ""}
-            onChange={(e) => definir("ordering", e.target.value)}
-          >
-            <option value="">Maior oportunidade</option>
-            <option value="name">Nome</option>
-            <option value="-discovered_at">Descobertas recentes</option>
-          </Selecao>
+            valor={form.ordering ?? ""}
+            aoMudar={(escolhido) => definir("ordering", escolhido)}
+            vazio="Maior oportunidade"
+            opcoes={[
+              { valor: "name", rotulo: "Nome" },
+              { valor: "-discovered_at", rotulo: "Descobertas recentes" },
+            ]}
+          />
         </Grupo>
 
         <Botao type="submit" variante="primaria" className="w-full">

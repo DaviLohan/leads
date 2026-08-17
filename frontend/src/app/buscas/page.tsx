@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { Casca } from "@/components/casca";
 import { Botao } from "@/components/ui/botao";
+import { Selecao } from "@/components/ui/campo";
 import { CabecalhoDaPagina } from "@/components/ui/cabecalho";
 import { Etiqueta } from "@/components/ui/etiqueta";
 import { Erro, EsqueletoDeTabela, Vazio } from "@/components/ui/superficie";
@@ -76,9 +77,7 @@ export default function Buscas() {
 
       <NovaBusca estados={estados} categorias={categorias} aoCriar={recarregar} />
 
-      <h2 className="text-tinta-fraca mt-10 mb-3 text-xs font-semibold tracking-[0.1em] uppercase">
-        Histórico
-      </h2>
+      <h2 className="rotulo-secao mt-10 mb-3">Histórico</h2>
 
       {carregando ? (
         <EsqueletoDeTabela linhas={3} colunas={4} />
@@ -160,38 +159,27 @@ function NovaBusca({
           setEnviando(false);
         }
       }}
-      className="border-linha bg-papel-alto rounded-lg border p-5"
+      className="border-linha bg-papel-alto rounded-md border p-5"
     >
       <div className="flex flex-wrap items-end gap-4">
-        <Campo rotulo="Estado">
-          <select
-            value={uf}
-            onChange={(e) => setUf(e.target.value)}
-            required
-            className="border-linha bg-papel-alto rounded border px-2.5 py-1.5 text-sm"
-          >
-            <option value="">Escolha…</option>
-            {estados.map((e) => (
-              <option key={e.id} value={e.uf}>
-                {e.name}
-              </option>
-            ))}
-          </select>
-        </Campo>
+        <Selecao
+          rotulo="Estado"
+          className="w-56"
+          valor={uf}
+          aoMudar={setUf}
+          required
+          vazio="Escolha…"
+          opcoes={estados.map((estado) => ({ valor: estado.uf, rotulo: estado.name }))}
+        />
 
-        <Campo rotulo="Ramo">
-          <select
-            value={categoria}
-            onChange={(e) => setCategoria(e.target.value)}
-            className="border-linha bg-papel-alto rounded border px-2.5 py-1.5 text-sm"
-          >
-            {categorias.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </Campo>
+        <Selecao
+          rotulo="Ramo"
+          className="w-64"
+          valor={categoria}
+          aoMudar={setCategoria}
+          required
+          opcoes={categorias.map((c) => ({ valor: c.id, rotulo: c.name }))}
+        />
 
         <Botao type="submit" disabled={enviando || !uf || !categoria}>
           {enviando ? "Criando…" : "Criar busca"}
@@ -199,7 +187,7 @@ function NovaBusca({
       </div>
 
       {previsao !== null && (
-        <p className="text-tinta-fraca mt-4 text-sm">
+        <p className="text-tinta-fraca text-apoio mt-4">
           Vai varrer <span className="dados text-tinta font-semibold">{previsao}</span>{" "}
           {previsao === 1 ? "município" : "municípios"}.
           {previsao > 100 && (
@@ -225,7 +213,7 @@ function ItemDeBusca({ busca, aoMudar }: { busca: Busca; aoMudar: () => void }) 
   }, [aberta, busca.id, busca.progress]);
 
   return (
-    <li className="border-linha bg-papel-alto rounded-lg border">
+    <li className="border-linha bg-papel-alto rounded-md border">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
         <button
           onClick={() => setAberta((a) => !a)}
@@ -243,10 +231,12 @@ function ItemDeBusca({ busca, aoMudar }: { busca: Busca; aoMudar: () => void }) 
               style={{ width: `${busca.progress}%` }}
             />
           </div>
-          <span className="dados text-tinta-fraca w-10 text-right text-xs">{busca.progress}%</span>
+          <span className="dados text-tinta-fraca text-legenda w-10 text-right">
+            {busca.progress}%
+          </span>
           {/* O que a busca rendeu, não só se terminou: achadas, novas, já conhecidas. */}
           {busca.found_count > 0 && (
-            <span className="dados text-tinta-fraca text-xs whitespace-nowrap">
+            <span className="dados text-tinta-fraca text-legenda whitespace-nowrap">
               {busca.found_count} achadas ·{" "}
               <span className="text-lacuna">{busca.new_count} novas</span>
               {busca.duplicate_count > 0 && ` · ${busca.duplicate_count} já conhecidas`}
@@ -272,11 +262,11 @@ function ItemDeBusca({ busca, aoMudar }: { busca: Busca; aoMudar: () => void }) 
       {aberta && (
         <div className="border-linha border-t px-4 py-3">
           {jobs.length === 0 ? (
-            <p className="text-tinta-fraca text-sm">Sem municípios ainda.</p>
+            <p className="text-tinta-fraca text-apoio">Sem municípios ainda.</p>
           ) : (
-            <table className="w-full text-sm">
+            <table className="text-apoio w-full">
               <thead>
-                <tr className="text-tinta-fraca text-left text-xs">
+                <tr className="text-tinta-fraca text-legenda text-left">
                   <th className="pb-2 font-medium">Município</th>
                   <th className="pb-2 font-medium">Situação</th>
                   <th className="pb-2 text-right font-medium">Achadas</th>
@@ -290,7 +280,7 @@ function ItemDeBusca({ busca, aoMudar }: { busca: Busca; aoMudar: () => void }) 
                       {j.city}
                       <span className="text-tinta-fraca">/{j.uf}</span>
                     </td>
-                    <td className="text-tinta-fraca py-1.5 text-xs">
+                    <td className="text-tinta-fraca text-legenda py-1.5">
                       {j.last_error ? (
                         <span className="text-perdido" title={j.last_error}>
                           falhou
@@ -309,14 +299,5 @@ function ItemDeBusca({ busca, aoMudar }: { busca: Busca; aoMudar: () => void }) 
         </div>
       )}
     </li>
-  );
-}
-
-function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="text-tinta-fraca text-xs font-medium">{rotulo}</span>
-      {children}
-    </label>
   );
 }

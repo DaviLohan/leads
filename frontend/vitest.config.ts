@@ -8,6 +8,11 @@ export default defineConfig({
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
+  // O Next compila JSX com o runtime automático; o vitest, por omissão, com o clássico
+  // (`React.createElement`). Sem alinhar os dois, componente que não importa `React` — que é
+  // a convenção do projeto inteiro — quebra com "React is not defined" **só no teste**,
+  // enquanto funciona no navegador.
+  esbuild: { jsx: "automatic" },
   test: {
     environment: "node",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { Casca } from "@/components/casca";
 import { Botao } from "@/components/ui/botao";
+import { Selecao } from "@/components/ui/campo";
 import { CabecalhoDaPagina } from "@/components/ui/cabecalho";
 import { Etiqueta, Score } from "@/components/ui/etiqueta";
 import { Erro, Esqueleto } from "@/components/ui/superficie";
@@ -30,7 +31,6 @@ const TIPOS_DE_CONTATO = [
 ] as const;
 
 const RESULTADOS = [
-  ["", "Sem resultado"],
   ["NO_ANSWER", "Não atendeu"],
   ["ANSWERED", "Atendeu"],
   ["INTERESTED", "Interessado"],
@@ -245,17 +245,14 @@ function RegistrarContato({ leadId, aoRegistrar }: { leadId: string; aoRegistrar
       />
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <select
-          value={outcome}
-          onChange={(e) => setOutcome(e.target.value)}
-          className="border-linha bg-papel-alto rounded border px-2.5 py-1.5 text-sm"
-        >
-          {RESULTADOS.map(([valor, rotulo]) => (
-            <option key={valor} value={valor}>
-              {rotulo}
-            </option>
-          ))}
-        </select>
+        <Selecao
+          aria-label="Resultado do contato"
+          className="w-48"
+          valor={outcome}
+          aoMudar={setOutcome}
+          vazio="Sem resultado"
+          opcoes={RESULTADOS.map(([valor, rotulo]) => ({ valor, rotulo }))}
+        />
         <Botao type="submit" disabled={enviando}>
           {enviando ? "Registrando…" : "Registrar contato"}
         </Botao>

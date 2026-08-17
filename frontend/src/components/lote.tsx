@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { useAviso } from "@/components/ui/aviso";
 import { Botao } from "@/components/ui/botao";
+import { Selecao } from "@/components/ui/campo";
 import { errorMessage } from "@/lib/auth";
 import { adicionarNaLista, criarLeadsEmLote, criarLista, listarListas } from "@/lib/recursos";
 import type { Lista } from "@/lib/tipos";
@@ -92,20 +93,18 @@ export function BarraDeLote({
         </span>
 
         <div className="border-linha ml-auto flex flex-wrap items-center gap-2 border-l pl-3">
-          <select
-            value={destino}
-            onChange={(e) => setDestino(e.target.value)}
-            className="entrada w-auto"
+          <Selecao
+            valor={destino}
+            aoMudar={setDestino}
+            className="w-52"
             aria-label="Lista de destino"
             disabled={Boolean(nova.trim())}
-          >
-            <option value="">escolher lista…</option>
-            {listas.map((lista) => (
-              <option key={lista.id} value={lista.id}>
-                {lista.name} ({lista.company_count})
-              </option>
-            ))}
-          </select>
+            vazio="escolher lista…"
+            opcoes={listas.map((lista) => ({
+              valor: lista.id,
+              rotulo: `${lista.name} (${lista.company_count})`,
+            }))}
+          />
           <span className="text-legenda text-tinta-fraca">ou</span>
           <input
             value={nova}
