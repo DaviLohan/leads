@@ -168,6 +168,9 @@ REST_FRAMEWORK = {
         "password_reset": "5/hour",
         "search_create": "30/hour",
         "analysis": "60/hour",
+        # Exportar é barato para quem pede e caro para o servidor — e é o caminho pelo qual
+        # a base inteira sairia daqui, um recorte por vez.
+        "export": "20/hour",
     },
 }
 

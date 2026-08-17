@@ -7,6 +7,7 @@ Busca é dado da organização (ADR-0007), então tudo passa por `TenantViewSet`
 from __future__ import annotations
 
 from django.db import models
+from django.db.models.functions import Coalesce
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -44,6 +45,13 @@ class SearchViewSet(TenantViewSet):
                 jobs_done=models.Count(
                     "jobs", filter=models.Q(jobs__status__in=JOB_TERMINAL), distinct=True
                 ),
+                # Somas dos contadores que cada job já grava. `Coalesce` porque busca sem job
+                # traria `None`, e a tela mostraria vazio onde o certo é zero.
+                found_count=Coalesce(models.Sum("jobs__found_count"), 0),
+                new_count=Coalesce(models.Sum("jobs__new_count"), 0),
+                duplicate_count=Coalesce(models.Sum("jobs__duplicate_count"), 0),
+                review_count=Coalesce(models.Sum("jobs__review_count"), 0),
+                error_count=Coalesce(models.Sum("jobs__error_count"), 0),
             )
             # `order_by` explícito: a anotação cria um GROUP BY, e com ele o Django passa a
             # considerar o queryset não-ordenado mesmo com `Meta.ordering` — o que torna a

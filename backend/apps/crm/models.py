@@ -188,7 +188,10 @@ class Interaction(BaseModel):
     class Meta:
         verbose_name = _("interação")
         verbose_name_plural = _("interações")
-        ordering = ["-occurred_at"]
+        # Desempate por `-id` (uuid7 é ordenado no tempo): dois eventos no mesmo instante —
+        # a mudança de estágio que o serviço grava e a interação que o usuário registrou —
+        # sairiam em ordem arbitrária, e o histórico apareceria de cabeça para baixo.
+        ordering = ["-occurred_at", "-id"]
         indexes = [models.Index(fields=["lead", "-occurred_at"])]
 
     def __str__(self) -> str:
@@ -319,3 +322,76 @@ class SuppressionEntry(TenantModel):
 
     def __str__(self) -> str:
         return f"{self.get_identifier_kind_display()}: {self.identifier_value}"
+
+
+class CompanyList(TenantModel):
+    """Uma lista de trabalho: "Dentistas de Curitiba", "Ligar amanhã".
+
+    É do tenant, como o `Lead` — a empresa é pública, mas o recorte que uma organização faz
+    dela é dela. Lista **não** é estágio de funil e não é lead: serve para separar um lote
+    antes de decidir o que fazer com ele, e a mesma empresa pode estar em várias.
+    """
+
+    name = models.CharField(_("nome"), max_length=120)
+    description = models.CharField(_("descrição"), max_length=300, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="company_lists",
+        verbose_name=_("criada por"),
+    )
+
+    class Meta:
+        verbose_name = _("lista")
+        verbose_name_plural = _("listas")
+        ordering = ["name"]
+        constraints = [
+            # Dois "Dentistas Curitiba" na mesma organização é erro de digitação, não intenção:
+            # o time salvaria metade do lote em cada uma e trabalharia com a lista errada.
+            models.UniqueConstraint(
+                fields=["organization", "name"], name="uniq_lista_por_organizacao_nome"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class CompanyListItem(BaseModel):
+    """Uma empresa dentro de uma lista. O escopo vem da lista."""
+
+    company_list = models.ForeignKey(
+        CompanyList, on_delete=models.CASCADE, related_name="items", verbose_name=_("lista")
+    )
+    company = models.ForeignKey(
+        "companies.Company",
+        on_delete=models.CASCADE,
+        related_name="list_items",
+        verbose_name=_("empresa"),
+    )
+    added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="list_items",
+        verbose_name=_("adicionada por"),
+    )
+
+    class Meta:
+        verbose_name = _("item da lista")
+        verbose_name_plural = _("itens da lista")
+        ordering = ["-created_at"]
+        constraints = [
+            # A idempotência de "salvar em lista" vem daqui, e não de um `if exists` em
+            # Python: selecionar as mesmas 20 empresas duas vezes não duplica nada.
+            models.UniqueConstraint(
+                fields=["company_list", "company"], name="uniq_empresa_por_lista"
+            ),
+        ]
+        indexes = [models.Index(fields=["company_list", "company"])]
+
+    def __str__(self) -> str:
+        return f"{self.company_list.name}: {self.company.name}"

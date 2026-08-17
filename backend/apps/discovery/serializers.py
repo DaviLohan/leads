@@ -34,8 +34,16 @@ class SearchJobSerializer(serializers.ModelSerializer):
 
 class SearchSerializer(serializers.ModelSerializer):
     progress = serializers.IntegerField(read_only=True)
-    # Ambos vêm de anotação na listagem (ver SearchViewSet.get_queryset).
+    # Todos vêm de anotação na listagem (ver SearchViewSet.get_queryset).
     job_count = serializers.IntegerField(read_only=True)
+    # O resultado da busca em números, somado dos jobs: quantas empresas a fonte devolveu,
+    # quantas eram novas, quantas já existiam. Sem isto a tela mostrava "concluída" e nada
+    # sobre o que a busca **rendeu** — que é a única pergunta que interessa depois.
+    found_count = serializers.IntegerField(read_only=True, default=0)
+    new_count = serializers.IntegerField(read_only=True, default=0)
+    duplicate_count = serializers.IntegerField(read_only=True, default=0)
+    review_count = serializers.IntegerField(read_only=True, default=0)
+    error_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = Search
@@ -46,6 +54,11 @@ class SearchSerializer(serializers.ModelSerializer):
             "status",
             "progress",
             "job_count",
+            "found_count",
+            "new_count",
+            "duplicate_count",
+            "review_count",
+            "error_count",
             "created_at",
             "started_at",
             "finished_at",

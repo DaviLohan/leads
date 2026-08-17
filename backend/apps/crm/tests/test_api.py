@@ -15,37 +15,6 @@ from apps.crm.models import Interaction, Lead, SuppressionEntry
 pytestmark = pytest.mark.django_db
 
 
-@pytest.fixture
-def funil(org):
-    return criar_funil_padrao(org)
-
-
-@pytest.fixture
-def empresa(db):
-    return Company.objects.create(name="Clínica São José")
-
-
-@pytest.fixture
-def vendedor(make_user, make_member, org):
-    u = make_user("vendedor@exemplo.com")
-    make_member(u, org, role=Role.SALES)
-    return u
-
-
-@pytest.fixture
-def admin(make_user, make_member, org):
-    u = make_user("admin@exemplo.com")
-    make_member(u, org, role=Role.ADMIN)
-    return u
-
-
-@pytest.fixture
-def leitor(make_user, make_member, org):
-    u = make_user("leitor@exemplo.com")
-    make_member(u, org, role=Role.VIEWER)
-    return u
-
-
 class TestLead:
     def test_cria_pelo_endpoint(self, api, login_as, vendedor, funil, empresa):
         login_as(vendedor)
@@ -68,6 +37,27 @@ class TestLead:
         login_as(vendedor)
         r = api.post("/api/v1/crm/leads/", {"company": str(uuid.uuid4())}, format="json")
         assert r.status_code == 400
+
+    def test_listagem_traz_telefone_e_cidade_do_lead(
+        self, api, login_as, vendedor, funil, empresa, org
+    ):
+        """A fila de trabalho é uma lista de ligações: sem telefone na linha, não é fila."""
+        from apps.companies.models import CompanyContact
+
+        CompanyContact.objects.create(
+            company=empresa,
+            kind=CompanyContact.Kind.PHONE,
+            value_raw="+554133330000",
+            value_normalized="+554133330000",
+            is_primary=True,
+        )
+        services.create_lead(organization=org, company=empresa)
+        login_as(vendedor)
+
+        linha = api.get("/api/v1/crm/leads/").data["results"][0]
+
+        assert linha["phone"] == "+554133330000"
+        assert linha["whatsapp"] is None
 
     def test_move_de_estagio(self, api, login_as, vendedor, funil, empresa, org):
         lead = services.create_lead(organization=org, company=empresa)

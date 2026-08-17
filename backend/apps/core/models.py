@@ -83,6 +83,9 @@ class AuditLog(BaseModel):
         LOGIN = "LOGIN", _("Login")
         PERMISSION_CHANGE = "PERMISSION_CHANGE", _("Alteração de permissão")
         CONFIG_CHANGE = "CONFIG_CHANGE", _("Alteração de configuração")
+        # Dado comercial saindo do sistema. É a ação que mais precisa de rastro: depois de
+        # exportado, o CSV está fora do controle de acesso da plataforma.
+        EXPORT = "EXPORT", _("Exportação")
 
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
