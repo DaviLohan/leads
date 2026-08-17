@@ -387,14 +387,32 @@ Fundo é papel de escritório (cinza-verde frio), não creme. Chivo nos títulos
 corpo, Azeret Mono em todo número — score, telefone, código IBGE e contagem alinham em
 coluna, que é como se varre uma lista de ligações com o olho.
 
+**Sidebar fixa de 240px**, não navegação horizontal. A decisão anterior era o contrário
+("barra lateral roubaria largura da tabela"); em 1440px sobram 1200px, e a lateral entrega o
+que a horizontal não entregava: seis seções com ícone, estado ativo inequívoco e um lugar
+estável para organização e usuário. Não há barra superior no desktop de propósito — ela só
+repetiria o título que o `CabecalhoDaPagina` já mostra. No mobile a sidebar vira gaveta.
+
+**Todo valor visual sai de `app/globals.css`.** Seis degraus de texto, três arredondamentos,
+uma altura de controle (36px, a mesma para botão, campo e select), duas sombras — e sombra só
+no que flutua. Utilitário com valor arbitrário (`text-[11px]`, `rounded-[2px]`) é dívida: foi
+o que produziu nove tamanhos de texto e quatro alturas de controle na versão anterior.
+Primitivos em `components/ui/` (`Botao`, `Campo`, `Selecao`, `Etiqueta`, `Score`, `Cartao`,
+`Esqueleto`, `Vazio`, `Erro`, `CabecalhoDaPagina`, `CartaoDeMetrica`, `ProvedorDeAvisos`).
+Ícones: `lucide-react`, biblioteca única, 16px em controle. Confirmação de ação vai para o
+aviso global, nunca para texto solto que some com o componente.
+
 Português em toda parte, inclusive no código do frontend: os nomes das telas e componentes
-são os do domínio (`Casca`, `BarraDeLacunas`, `Regua`), como no backend. **As rotas também**
+são os do domínio (`Casca`, `BarraDeLacunas`, `Score`), como no backend. **As rotas também**
 — `/empresas`, `/leads`, `/listas`, `/buscas`. `/crm` redireciona para `/leads` no
 `next.config.ts`: renomear rota sem redirecionar quebra o usuário, não o código.
 
 Navegação: `Painel · Empresas · Leads · Listas · Buscas · Configurações`. Leads e funil são
 **uma seção com duas vistas** (`/leads?vista=funil`), não dois itens de menu — são o mesmo
-dado, e separá-los criaria dois lugares para procurar o mesmo lead.
+dado, e separá-los criaria dois lugares para procurar o mesmo lead. A vista de funil é um
+**Kanban** com rolagem horizontal (a decisão anterior o descartava por não caber na tela; a
+rolagem resolve, e a lista continua sendo o padrão porque é ela que responde "para quem eu
+ligo agora").
 
 Os filtros da tela Empresas vivem na URL, com **os mesmos nomes da API** (`uf`, `category`,
 `has_phone`, `site`, `score_min`, `in_crm`): a query string da tela e a da requisição são a

@@ -10,37 +10,100 @@
  *
  * O fundo é papel de escritório, não creme: um cinza-verde frio, do tipo em que se imprime
  * formulário. O trabalho aqui é uma lista de ligações, não uma peça de marketing.
+ *
+ * ---
+ *
+ * **Este arquivo é a única fonte de valor visual.** Cor, tamanho de texto, arredondamento,
+ * altura de controle, sombra e camada saem daqui. Utilitário com valor arbitrário
+ * (`text-[11px]`, `rounded-[2px]`, `w-[62rem]`) é dívida: foi o que produziu, na versão
+ * anterior, nove tamanhos de texto e quatro alturas de controle para os mesmos papéis.
  */
 
 @theme {
-  /* Superfícies */
-  --color-papel: #f1f4f2;
-  --color-papel-alto: #ffffff;
-  --color-papel-fundo: #e7ebe9;
+  /* --- Superfícies -----------------------------------------------------------------
+     Três níveis, e a hierarquia é dada por **borda**, não por sombra. Sombra fica só em
+     coisa que flutua de verdade (menu, gaveta, aviso). */
+  --color-papel: #f1f4f2; /* fundo da aplicação */
+  --color-papel-alto: #ffffff; /* cartão, tabela, campo */
+  --color-papel-fundo: #e7ebe9; /* rebaixado: cabeçalho de tabela, trilho */
 
-  /* Tinta */
-  --color-tinta: #10201d;
-  --color-tinta-fraca: #5a6b67;
-  --color-linha: #d5ddda;
+  /* --- Tinta: três níveis de contraste, todos legíveis sobre papel -------------------
+     Antes havia `text-tinta-fraca/60`, `/50` e `/70` espalhados — opacidade fazendo papel
+     de token. Cada nível agora tem nome e contraste conferido. */
+  --color-tinta: #10201d; /* 13.9:1 — texto principal */
+  --color-tinta-media: #3d4f4a; /* 8.1:1  — texto secundário */
+  --color-tinta-fraca: #5a6b67; /* 5.2:1  — rótulo, apoio, legenda */
+  --color-linha: #d5ddda; /* borda e separador */
+  --color-linha-forte: #b9c5c1; /* borda de campo em foco/hover */
 
-  /* Sinal: âmbar é lacuna, e lacuna é oportunidade de venda. */
-  --color-lacuna: #e8760a;
+  /* --- Sinal: âmbar é lacuna, e lacuna é oportunidade de venda ---------------------- */
+  --color-lacuna: #b45309; /* 4.6:1 sobre papel — era #e8760a, ilegível em texto */
+  --color-lacuna-viva: #e8760a; /* só preenchimento (barra de lacunas), nunca texto */
   --color-lacuna-fraca: #fdf0e2;
 
   /* O que a empresa já tem. Cinza de propósito: não é a notícia. */
   --color-presente: #93a5a0;
 
-  /* Ação e estados */
+  /* --- Ação e estados --------------------------------------------------------------- */
   --color-acao: #0f5c52;
   --color-acao-forte: #0a453e;
+  --color-acao-fraca: #e6efec;
   --color-ganho: #1c6b4a;
+  --color-ganho-fraca: #e4f0ea;
   --color-perdido: #a8443a;
+  --color-perdido-fraca: #f7e8e6;
+  --color-aviso: #8a6410;
+  --color-aviso-fraca: #fbf1dc;
+  --color-info: #1f5673;
+  --color-info-fraca: #e5eef3;
 
+  /* --- Tipografia -------------------------------------------------------------------
+     Seis degraus, um por papel. Cada um traz a altura de linha junto: tamanho sem entrelinha
+     definida é como metade dos desalinhamentos verticais nascem. */
   --font-display: var(--fonte-display), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--fonte-corpo), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--fonte-dados), ui-monospace, monospace;
 
-  --radius-lg: 0.375rem;
+  --text-display: 1.75rem; /* 28px — número grande, título de login */
+  --text-display--line-height: 1.15;
+  --text-titulo: 1.375rem; /* 22px — título de página */
+  --text-titulo--line-height: 1.25;
+  --text-secao: 0.75rem; /* 12px — rótulo de seção, versalete */
+  --text-secao--line-height: 1.4;
+  --text-corpo: 0.875rem; /* 14px — texto e tabela */
+  --text-corpo--line-height: 1.45;
+  --text-apoio: 0.8125rem; /* 13px — texto secundário */
+  --text-apoio--line-height: 1.4;
+  --text-legenda: 0.6875rem; /* 11px — legenda, contador, unidade */
+  --text-legenda--line-height: 1.35;
+
+  /* --- Arredondamento: três, e cada um tem um dono ---------------------------------- */
+  --radius-xs: 2px; /* só a barra de lacunas: segmento de 8px de altura */
+  --radius-sm: 4px; /* controles: botão, campo, etiqueta */
+  --radius-md: 8px; /* superfícies: cartão, tabela, painel */
+  --radius-lg: 12px; /* gaveta e modal */
+
+  /* --- Sombra: duas, e só para o que flutua ----------------------------------------- */
+  --shadow-suspenso: 0 4px 12px -2px rgb(16 32 29 / 0.1), 0 2px 4px -2px rgb(16 32 29 / 0.06);
+  --shadow-flutuante: 0 16px 32px -8px rgb(16 32 29 / 0.18);
+}
+
+/* --- Medidas do produto ------------------------------------------------------------
+   Não são tokens do Tailwind porque não viram utilitário: são as medidas estruturais que
+   componentes e casca consultam. */
+:root {
+  --altura-controle: 2.25rem; /* 36px — botão, campo, select: TODOS medem isto */
+  --altura-controle-lg: 2.5rem; /* 40px — ação principal e busca do topo */
+  --largura-sidebar: 15rem; /* 240px */
+  --altura-header: 3.5rem; /* 56px */
+  --largura-conteudo: 90rem; /* 1440px — teto para não esticar em monitor grande */
+
+  /* Camadas nomeadas. Dropdown sob gaveta, gaveta sob modal, aviso acima de tudo. */
+  --z-sticky: 10;
+  --z-dropdown: 20;
+  --z-gaveta: 30;
+  --z-modal: 40;
+  --z-aviso: 50;
 }
 
 html {
@@ -51,7 +114,10 @@ body {
   background: var(--color-papel);
   color: var(--color-tinta);
   font-family: var(--font-sans);
+  font-size: var(--text-corpo);
+  line-height: var(--text-corpo--line-height);
   font-feature-settings: "cv05", "ss01";
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Números tabulares em toda parte: score, telefone, código IBGE e contagem ficam alinhados
@@ -62,11 +128,108 @@ body {
   font-feature-settings: "zero" 1;
 }
 
-/* Foco visível sempre — o teclado é como se percorre uma lista longa depressa. */
-:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+/* Rótulo de seção: versalete curto. Um só lugar define o tracking, que antes aparecia como
+   `tracking-[0.08em]` e `[0.1em]` em telas diferentes. */
+.rotulo-secao {
+  font-size: var(--text-secao);
+  line-height: var(--text-secao--line-height);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-tinta-fraca);
+}
+
+/* A legenda da barra de lacunas. Nove pixels é menor que o menor degrau da escala, e é
+   deliberado: são cinco rótulos sob segmentos de 28px, e qualquer coisa maior quebra a
+   linha. Fica aqui, com nome, em vez de `text-[9px]` espalhado por dois arquivos. */
+.rotulo-lacuna {
+  font-size: 0.5625rem;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Campo de formulário. É classe, e não utilitários repetidos, porque a tela de filtros tem
+   oito deles — e é aqui que a altura única de controle é imposta. */
+.entrada {
+  width: 100%;
+  height: var(--altura-controle);
+  border: 1px solid var(--color-linha);
+  background: var(--color-papel-alto);
+  border-radius: var(--radius-sm);
+  padding: 0 0.625rem;
+  font-size: var(--text-corpo);
+  color: var(--color-tinta);
+  outline: none;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+/* `select` precisa de espaço para a seta; `textarea` não tem altura fixa. */
+select.entrada {
+  padding-right: 1.75rem;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-tinta-fraca) 50%),
+    linear-gradient(135deg, var(--color-tinta-fraca) 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) 50%,
+    calc(100% - 10px) 50%;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+}
+
+textarea.entrada {
+  height: auto;
+  padding: 0.5rem 0.625rem;
+}
+
+.entrada::placeholder {
+  color: var(--color-tinta-fraca);
+}
+
+.entrada:hover:not(:disabled) {
+  border-color: var(--color-linha-forte);
+}
+
+.entrada:focus {
+  border-color: var(--color-acao);
+  box-shadow: 0 0 0 3px var(--color-acao-fraca);
+}
+
+.entrada[aria-invalid="true"] {
+  border-color: var(--color-perdido);
+}
+
+.entrada:disabled {
+  background: var(--color-papel-fundo);
+  color: var(--color-tinta-fraca);
+  cursor: not-allowed;
+}
+
+/* Foco visível sempre — o teclado é como se percorre uma lista longa depressa. O campo tem
+   o próprio anel (borda + halo), então não leva o contorno duplo. */
+:where(a, button, select, textarea, [tabindex]):focus-visible,
+input:not(.entrada):focus-visible {
   outline: 2px solid var(--color-acao);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* A única animação do produto: o aviso entrando. 140ms, deslocamento de 4px — o suficiente
+   para o olho notar que algo chegou, curto demais para atrapalhar quem está trabalhando. */
+@keyframes surgir {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

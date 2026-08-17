@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 
-import { Botao, Cabecalho, Casca, Erro, Vazio } from "@/components/casca";
+import { Casca } from "@/components/casca";
+import { Botao } from "@/components/ui/botao";
+import { CabecalhoDaPagina } from "@/components/ui/cabecalho";
+import { Erro, Esqueleto, Vazio } from "@/components/ui/superficie";
 import { errorMessage, getMe, ROLE_LABELS, type Me } from "@/lib/auth";
 import { listarSupressoes, suprimir } from "@/lib/recursos";
 import type { Supressao } from "@/lib/tipos";
@@ -40,7 +43,7 @@ export default function Configuracoes() {
 
   return (
     <Casca>
-      <Cabecalho titulo="Configurações" />
+      <CabecalhoDaPagina titulo="Configurações" />
 
       <section className="mb-10">
         <h2 className="text-tinta-fraca mb-3 text-xs font-semibold tracking-[0.1em] uppercase">
@@ -66,7 +69,10 @@ export default function Configuracoes() {
         {podeSuprimir && <Formulario aoRegistrar={recarregar} />}
 
         {carregando ? (
-          <p className="dados text-tinta-fraca mt-4 text-sm">carregando…</p>
+          <div className="mt-4 space-y-2">
+            <Esqueleto className="h-10 w-full" />
+            <Esqueleto className="h-10 w-full" />
+          </div>
         ) : supressoes.length === 0 ? (
           <div className="mt-4">
             <Vazio

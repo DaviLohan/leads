@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Botao } from "@/components/ui/botao";
+import { Campo } from "@/components/ui/campo";
 import { errorMessage, login } from "@/lib/auth";
 
 /**
@@ -36,53 +38,38 @@ export default function Entrar() {
     <main className="grid min-h-screen lg:grid-cols-2">
       <section className="flex flex-col justify-center gap-8 px-6 py-16 sm:px-12 lg:px-16">
         <div className="flex items-baseline gap-2">
-          <span className="font-display text-tinta text-xl leading-none font-black tracking-tight">
+          <span className="font-display text-tinta text-titulo leading-none font-black tracking-tight">
             Radar
           </span>
-          <span className="bg-lacuna h-1.5 w-1.5 rounded-full" aria-hidden />
+          <span className="bg-lacuna-viva size-1.5 rounded-full" aria-hidden />
         </div>
 
         <form onSubmit={aoEnviar} className="flex max-w-sm flex-col gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-tinta-fraca text-sm font-medium">E-mail</span>
-            <input
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="border-linha bg-papel-alto focus:border-acao rounded border px-3 py-2 text-sm outline-none"
-            />
-          </label>
+          <Campo
+            rotulo="E-mail"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-tinta-fraca text-sm font-medium">Senha</span>
-            <input
-              type="password"
-              required
-              autoComplete="current-password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              className="border-linha bg-papel-alto focus:border-acao rounded border px-3 py-2 text-sm outline-none"
-            />
-          </label>
+          <Campo
+            rotulo="Senha"
+            type="password"
+            required
+            autoComplete="current-password"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            erro={erro ?? undefined}
+          />
 
-          {erro && (
-            <p role="alert" className="text-perdido text-sm">
-              {erro}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={enviando}
-            className="bg-acao text-papel-alto hover:bg-acao-forte rounded px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50"
-          >
+          <Botao type="submit" variante="primaria" tamanho="lg" carregando={enviando}>
             {enviando ? "Entrando…" : "Entrar"}
-          </button>
+          </Botao>
         </form>
 
-        <p className="text-tinta-fraca max-w-sm text-xs">
+        <p className="text-tinta-fraca text-legenda max-w-sm">
           O acesso é por convite. Fale com quem administra a sua organização.
         </p>
       </section>
@@ -90,7 +77,7 @@ export default function Entrar() {
       {/* O painel da direita é a tese do produto, dita com o vocabulário do próprio radar:
           cheio de âmbar é o que falta, e é por isso que existe alguém para quem vender. */}
       <section className="bg-papel-fundo hidden flex-col justify-center gap-8 px-16 lg:flex">
-        <p className="font-display text-tinta max-w-md text-3xl leading-tight font-black tracking-tight">
+        <p className="font-display text-tinta max-w-md text-display leading-tight font-black tracking-tight">
           A maioria dos negócios brasileiros ainda tem presença digital incompleta.
           <span className="text-tinta-fraca font-bold"> Este é o mapa de onde eles estão.</span>
         </p>
@@ -102,20 +89,20 @@ export default function Entrar() {
             ["Auto Peças Trevo", [false, true, true, true, false]],
           ].map(([nome, sinais]) => (
             <div key={nome as string} className="flex items-center gap-4">
-              <div className="flex gap-[3px]">
+              <div className="flex gap-0.5">
                 {(sinais as boolean[]).map((falta, i) => (
                   <span
                     key={i}
-                    className={`h-2 w-9 rounded-[2px] ${falta ? "bg-lacuna" : "bg-presente/25"}`}
+                    className={`h-2 w-9 rounded-xs ${falta ? "bg-lacuna-viva" : "bg-presente/25"}`}
                   />
                 ))}
               </div>
-              <span className="text-tinta-fraca text-sm">{nome as string}</span>
+              <span className="text-tinta-fraca text-apoio">{nome as string}</span>
             </div>
           ))}
         </div>
 
-        <p className="text-tinta-fraca max-w-md text-sm">
+        <p className="text-tinta-fraca text-apoio max-w-md">
           Cada barra é uma empresa. O que está em âmbar é o que falta — site, versão para celular,
           canal de contato, agendamento, conexão segura. É o que há para vender.
         </p>

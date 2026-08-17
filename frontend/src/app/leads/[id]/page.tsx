@@ -4,8 +4,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { Botao, Cabecalho, Casca, Erro, Etiqueta } from "@/components/casca";
-import { Score } from "@/components/lacunas";
+import { Casca } from "@/components/casca";
+import { Botao } from "@/components/ui/botao";
+import { CabecalhoDaPagina } from "@/components/ui/cabecalho";
+import { Etiqueta, Score } from "@/components/ui/etiqueta";
+import { Erro, Esqueleto } from "@/components/ui/superficie";
 import { errorMessage } from "@/lib/auth";
 import {
   anotacoesDoLead,
@@ -71,7 +74,10 @@ export default function DetalheDoLead() {
   if (carregando) {
     return (
       <Casca>
-        <p className="dados text-tinta-fraca text-sm">carregando…</p>
+        <div className="space-y-4">
+          <Esqueleto className="h-8 w-64" />
+          <Esqueleto className="h-32 w-full" />
+        </div>
       </Casca>
     );
   }
@@ -85,15 +91,15 @@ export default function DetalheDoLead() {
 
   return (
     <Casca>
-      <Link href="/crm" className="text-tinta-fraca hover:text-tinta mb-4 inline-block text-sm">
-        ← Prospecção
+      <Link href="/leads" className="text-tinta-fraca hover:text-tinta mb-4 inline-block text-sm">
+        ← Leads
       </Link>
 
-      <Cabecalho
+      <CabecalhoDaPagina
         titulo={lead.company_name}
         acao={
           <Link href={`/empresas/${lead.company}`}>
-            <Botao variante="quieta">Ver diagnóstico</Botao>
+            <Botao variante="secundaria">Ver diagnóstico</Botao>
           </Link>
         }
       />
@@ -292,7 +298,7 @@ function Anotacoes({
           placeholder="O que vale lembrar sobre esta empresa?"
           className="border-linha bg-papel-alto flex-1 rounded border px-3 py-1.5 text-sm"
         />
-        <Botao variante="quieta" type="submit">
+        <Botao variante="secundaria" type="submit">
           Anotar
         </Botao>
       </form>

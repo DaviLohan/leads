@@ -15,6 +15,14 @@ const nextConfig: NextConfig = {
   // em loop infinito. As URLs do Django terminam em "/" por convenção; o rewrite precisa
   // repassá-las intactas.
   skipTrailingSlashRedirect: true,
+  // A tela de prospecção virou `/leads`. Link salvo, aba aberta e histórico do navegador
+  // continuam funcionando — renomear rota sem redirecionar quebra o usuário, não o código.
+  async redirects() {
+    return [
+      { source: "/crm", destination: "/leads", permanent: false },
+      { source: "/crm/:id", destination: "/leads/:id", permanent: false },
+    ];
+  },
   async rewrites() {
     return [
       // A variante com barra vem primeiro: `:path*` não preserva a barra final ao remontar

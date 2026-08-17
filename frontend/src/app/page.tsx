@@ -1,162 +1,167 @@
 "use client";
 
+import { ArrowRight, PhoneOff, Radar, Search, Trophy, UserPlus } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import { Botao, Cabecalho, Casca, Erro, Vazio } from "@/components/casca";
-import { BarraDeLacunas, Score } from "@/components/lacunas";
+import { Casca } from "@/components/casca";
+import { TabelaDeEmpresas } from "@/components/tabela";
+import { Botao } from "@/components/ui/botao";
+import { CabecalhoDaPagina, CartaoDeMetrica } from "@/components/ui/cabecalho";
+import { Erro, Esqueleto, EsqueletoDeTabela, Vazio } from "@/components/ui/superficie";
 import { errorMessage } from "@/lib/auth";
-import { criarLead, lacunasDe, listarAnalises, listarPontuacoes } from "@/lib/recursos";
-import type { Analise, Pontuacao } from "@/lib/tipos";
+import { resumoDoCrm } from "@/lib/recursos";
+import type { Resumo } from "@/lib/tipos";
 
 /**
- * O Radar: a folha de ligações.
+ * O Painel: como está a minha prospecção.
  *
- * A tela abre com a frase que é a tese do produto — quantas empresas não têm site — porque
- * é isso que o vendedor precisa saber antes de qualquer gráfico. Depois vem a lista, na
- * ordem em que se trabalha: maior lacuna primeiro.
+ * Não é painel técnico e não tem gráfico decorativo. Responde três perguntas, na ordem em que
+ * alguém abre o sistema de manhã: **quantos esperam ligação**, **o que aconteceu hoje** e
+ * **quem eu devo abordar agora**.
+ *
+ * O número em âmbar é **sem contato** — a fila esquecida. Todo painel de vendas destaca o que
+ * já foi feito; o que muda o dia é o que ainda não foi.
  */
-export default function Radar() {
-  const [pontuacoes, setPontuacoes] = useState<Pontuacao[]>([]);
-  const [analises, setAnalises] = useState<Map<string, Analise>>(new Map());
+export default function Painel() {
+  const [resumo, setResumo] = useState<Resumo | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
-  useEffect(() => {
-    Promise.all([listarPontuacoes(), listarAnalises()])
-      .then(([p, a]) => {
-        setPontuacoes(p.results);
-        // A análise mais recente por empresa; a listagem já vem da mais nova para a mais velha.
-        const mapa = new Map<string, Analise>();
-        for (const analise of a.results) {
-          if (!mapa.has(analise.company)) mapa.set(analise.company, analise);
-        }
-        setAnalises(mapa);
-      })
-      .catch((e) => setErro(errorMessage(e, "Não foi possível carregar o radar.")))
+  const carregar = useCallback(() => {
+    setCarregando(true);
+    setErro(null);
+    return resumoDoCrm()
+      .then(setResumo)
+      .catch((e) => setErro(errorMessage(e, "Não foi possível carregar o painel.")))
       .finally(() => setCarregando(false));
   }, []);
 
-  const semSite = pontuacoes.filter((p) =>
-    p.components.some((c) => c.rule_code === "sem_site" || c.rule_code === "site_fora_do_ar"),
-  ).length;
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
 
   return (
     <Casca>
-      <Cabecalho
-        titulo="Radar"
-        descricao="Quem tem menos presença digital aparece primeiro. É onde há mais para vender."
+      <CabecalhoDaPagina
+        titulo="Painel"
+        descricao="Onde está a prospecção hoje — e quem abordar em seguida."
+        acao={
+          <Link href="/empresas">
+            <Botao variante="primaria" Icone={Search}>
+              Buscar leads
+            </Botao>
+          </Link>
+        }
       />
 
-      {erro && <Erro mensagem={erro} />}
-
-      {!carregando && pontuacoes.length > 0 && <Tese total={pontuacoes.length} semSite={semSite} />}
+      {erro && <Erro mensagem={erro} aoTentarNovamente={carregar} className="mb-6" />}
 
       {carregando ? (
-        <p className="dados text-tinta-fraca text-sm">carregando…</p>
-      ) : pontuacoes.length === 0 ? (
-        <Vazio
-          titulo="Nenhuma empresa analisada ainda."
-          acao={
-            <Link href="/buscas">
-              <Botao>Criar a primeira busca</Botao>
-            </Link>
-          }
-        />
-      ) : (
-        <ol className="border-linha bg-papel-alto divide-linha divide-y rounded-lg border">
-          {pontuacoes.map((p) => (
-            <Linha key={p.id} pontuacao={p} analise={analises.get(p.company)} />
-          ))}
-        </ol>
+        <div className="space-y-8">
+          <div className="border-linha bg-linha grid gap-px overflow-hidden rounded-md border sm:grid-cols-3 lg:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-papel-alto space-y-2 px-4 py-3.5">
+                <Esqueleto className="h-2.5 w-16" />
+                <Esqueleto className="h-6 w-10" />
+              </div>
+            ))}
+          </div>
+          <EsqueletoDeTabela linhas={5} colunas={5} />
+        </div>
+      ) : !resumo ? null : (
+        <div className="space-y-8">
+          {/* Uma faixa só, dividida por linha de 1px: seis cartões soltos com sombra viram
+              seis caixas competindo. Aqui eles leem como uma régua de números. */}
+          <section
+            aria-label="Resumo da prospecção"
+            className="border-linha bg-linha grid gap-px overflow-hidden rounded-md border sm:grid-cols-3 lg:grid-cols-6"
+          >
+            <CartaoDeMetrica rotulo="No funil" valor={resumo.total} Icone={Radar} />
+            <CartaoDeMetrica
+              rotulo="Sem contato"
+              valor={resumo.sem_contato}
+              contexto="esperando ligação"
+              destaque
+              Icone={PhoneOff}
+            />
+            <CartaoDeMetrica rotulo="Novos hoje" valor={resumo.novos_hoje} Icone={UserPlus} />
+            <CartaoDeMetrica rotulo="Contatados hoje" valor={resumo.contatados_hoje} />
+            <CartaoDeMetrica rotulo="Ganhos" valor={resumo.ganhos} Icone={Trophy} />
+            <CartaoDeMetrica
+              rotulo="Conversão"
+              valor={resumo.conversao === null ? "—" : `${Math.round(resumo.conversao * 100)}%`}
+              contexto={
+                resumo.conversao === null ? "nada encerrado ainda" : "sobre leads encerrados"
+              }
+            />
+          </section>
+
+          {resumo.total > 0 && (
+            <section>
+              <TituloDeSecao titulo="Funil" href="/leads?vista=funil" rotulo="ver funil" />
+              <div className="border-linha bg-papel-alto flex gap-1 rounded-md border p-3">
+                {resumo.por_estagio.map((estagio) => {
+                  const largura =
+                    resumo.total > 0
+                      ? Math.max(6, (estagio.lead_count / resumo.total) * 100)
+                      : 100 / resumo.por_estagio.length;
+                  return (
+                    <div
+                      key={estagio.code}
+                      style={{ width: `${largura}%` }}
+                      title={`${estagio.name}: ${estagio.lead_count}`}
+                      className={`min-w-0 rounded-sm px-2.5 py-2 ${
+                        estagio.is_won ? "bg-ganho-fraca" : "bg-papel-fundo"
+                      }`}
+                    >
+                      <div className="dados text-tinta font-semibold">{estagio.lead_count}</div>
+                      <div className="text-legenda text-tinta-fraca truncate">{estagio.name}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          <section>
+            <TituloDeSecao
+              titulo="Melhores oportunidades"
+              href="/empresas?in_crm=false"
+              rotulo="ver todas"
+            />
+            {resumo.melhores_oportunidades.length === 0 ? (
+              <Vazio
+                titulo="Nenhuma empresa fora do funil ainda."
+                descricao="Descubra empresas nas fontes externas para começar a prospectar."
+                Icone={Radar}
+                acao={
+                  <Link href="/buscas">
+                    <Botao variante="primaria">Buscar novas empresas</Botao>
+                  </Link>
+                }
+              />
+            ) : (
+              <TabelaDeEmpresas empresas={resumo.melhores_oportunidades} />
+            )}
+          </section>
+        </div>
       )}
     </Casca>
   );
 }
 
-/**
- * A tese, em números reais.
- *
- * Não é um cartão de KPI: é uma frase. O número grande é a ausência, porque a ausência é o
- * produto — e ler "8 de 9 não têm site" diz mais que qualquer gráfico de rosca.
- */
-function Tese({ total, semSite }: { total: number; semSite: number }) {
-  if (semSite === 0) return null;
+function TituloDeSecao({ titulo, href, rotulo }: { titulo: string; href: string; rotulo: string }) {
   return (
-    <p className="font-display text-tinta mb-8 max-w-2xl text-2xl leading-tight font-bold tracking-tight">
-      <span className="dados text-lacuna text-5xl font-semibold">{semSite}</span>{" "}
-      <span className="text-tinta-fraca font-medium">de {total} empresas analisadas</span> não têm
-      site oficial identificado.
-    </p>
-  );
-}
-
-function Linha({ pontuacao, analise }: { pontuacao: Pontuacao; analise?: Analise }) {
-  const [criando, setCriando] = useState(false);
-  const [aviso, setAviso] = useState<string | null>(null);
-  const [virouLead, setVirouLead] = useState(false);
-
-  const temSite = Boolean(analise);
-  const lacunas = lacunasDe(analise, temSite);
-
-  async function prospectar() {
-    setCriando(true);
-    setAviso(null);
-    try {
-      await criarLead(pontuacao.company);
-      setVirouLead(true);
-    } catch (e) {
-      setAviso(errorMessage(e, "Não foi possível criar o lead."));
-    } finally {
-      setCriando(false);
-    }
-  }
-
-  return (
-    <li className="hover:bg-papel/60 flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-4 transition-colors">
-      <div className="w-12 shrink-0 text-right">
-        <Score valor={pontuacao.value} />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <Link
-          href={`/empresas/${pontuacao.company}`}
-          className="text-tinta hover:text-acao font-medium"
-        >
-          {pontuacao.company_name}
-        </Link>
-        <div className="mt-2">
-          <BarraDeLacunas lacunas={lacunas} rotulos />
-        </div>
-      </div>
-
-      <div className="min-w-0 flex-1 basis-full sm:basis-auto">
-        <ul className="text-tinta-fraca space-y-0.5 text-xs">
-          {pontuacao.components.slice(0, 2).map((c) => (
-            <li key={c.rule_code} className="flex gap-2">
-              <span
-                className={`dados w-8 shrink-0 text-right ${c.points > 0 ? "text-lacuna" : ""}`}
-              >
-                {c.points > 0 ? `+${c.points}` : c.points}
-              </span>
-              <span className="truncate">{c.reason}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="shrink-0">
-        {virouLead ? (
-          <Link href="/crm" className="text-acao text-sm font-medium">
-            No funil →
-          </Link>
-        ) : (
-          <Botao variante="quieta" onClick={prospectar} disabled={criando}>
-            {criando ? "…" : "Prospectar"}
-          </Botao>
-        )}
-        {aviso && <p className="text-perdido mt-1 max-w-[16rem] text-xs">{aviso}</p>}
-      </div>
-    </li>
+    <div className="mb-3 flex items-baseline justify-between">
+      <h2 className="rotulo-secao">{titulo}</h2>
+      <Link
+        href={href}
+        className="text-apoio text-acao inline-flex items-center gap-1 font-medium hover:underline"
+      >
+        {rotulo}
+        <ArrowRight size={13} aria-hidden />
+      </Link>
+    </div>
   );
 }

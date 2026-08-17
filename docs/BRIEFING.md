@@ -281,11 +281,19 @@ Rotas (App Router, `frontend/src/app/`), **tudo em português**:
 | `/login` | Entrada |
 | `/crm`, `/crm/[id]` | Redirecionam para `/leads` (`next.config.ts`) |
 
-Componentes (`frontend/src/components/`): `casca.tsx` (navegação, `Cabecalho`, `Botao`,
-`Etiqueta`, `Vazio`, `Erro`), `tabela.tsx` (tabela de empresas com seleção opcional),
-`filtros.tsx` (painel ↔ query params), `telefone.tsx` (`Telefone` com copiar, `BotaoWhatsApp`,
-`formatarTelefone`, `linkDeWhatsApp`), `lote.tsx` (barra de ações em massa), `lacunas.tsx`
-(`BarraDeLacunas`, `Score`).
+Componentes (`frontend/src/components/`): `casca.tsx` (sidebar de 240px + gaveta no mobile),
+`tabela.tsx` (tabela de empresas com seleção opcional), `filtros.tsx` (painel ↔ query params),
+`telefone.tsx` (`Telefone` com copiar, `BotaoWhatsApp`, `formatarTelefone`, `linkDeWhatsApp`,
+`Ausente`), `lote.tsx` (barra de ações em massa, fixa no rodapé), `lacunas.tsx`
+(`BarraDeLacunas`).
+
+**Primitivos em `components/ui/`** — é aqui que se mexe antes de escrever classe nova:
+`botao.tsx` (`Botao`, `BotaoDeIcone`), `campo.tsx` (`Campo`, `Selecao`, `Marcador`,
+`ParDeCampos`), `etiqueta.tsx` (`Etiqueta`, `EtiquetaDeEstagio`, `Score`), `superficie.tsx`
+(`Cartao`, `Esqueleto`, `EsqueletoDeTabela`, `Vazio`, `Erro`), `cabecalho.tsx`
+(`CabecalhoDaPagina`, `CartaoDeMetrica`), `aviso.tsx` (`ProvedorDeAvisos`, `useAviso`).
+
+Auditoria visual e decisões do redesign: `docs/UI_AUDIT.md` e `docs/UI_REDESIGN_REPORT.md`.
 
 Biblioteca (`frontend/src/lib/`): `api.ts` (`apiFetch` com CSRF e cookie), `auth.ts`
 (`getMe`, `logout`, `errorMessage`), `recursos.ts` (**uma função por chamada de API** — é aqui

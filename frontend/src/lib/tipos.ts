@@ -11,6 +11,71 @@ export type Estado = { id: string; uf: string; name: string; region: string };
 export type Categoria = { id: string; slug: string; name: string };
 export type Municipio = { id: string; name: string; uf: string; ibge_code: string };
 
+/** Uma linha da tabela de empresas — plana, como a API devolve. */
+export type Empresa = {
+  id: string;
+  name: string;
+  category: string | null;
+  city: string | null;
+  uf: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  website: string | null;
+  website_status: "NOT_CHECKED" | "FOUND" | "NOT_FOUND";
+  score: number | null;
+  opportunities: { code: string; name: string }[];
+  lead_id: string | null;
+  lead_stage_code: string | null;
+  lead_stage_name: string | null;
+  rating: string | null;
+  review_count: number;
+  discovered_at: string;
+};
+
+export type Contato = {
+  id: string;
+  kind: "PHONE" | "WHATSAPP" | "EMAIL";
+  kind_label: string;
+  value_raw: string;
+  value_normalized: string;
+  is_primary: boolean;
+  verification_status: "UNVERIFIED" | "VALID" | "INVALID";
+};
+
+export type Endereco = {
+  id: string;
+  street: string;
+  number: string;
+  district: string;
+  postal_code: string;
+  city_name: string;
+  uf: string;
+  is_primary: boolean;
+};
+
+export type SitePrincipal = {
+  id: string;
+  url: string;
+  domain: string;
+  is_primary: boolean;
+  status: string;
+};
+
+export type EmpresaDetalhe = Empresa & {
+  legal_name: string;
+  trade_name: string;
+  tax_id: string | null;
+  description: string;
+  status: string;
+  last_seen_at: string | null;
+  contacts: Contato[];
+  addresses: Endereco[];
+  websites: SitePrincipal[];
+  social_profiles: { id: string; network: string; network_label: string; url: string }[];
+  categories: Categoria[];
+};
+
 export type Achado = {
   id: string;
   code: string;
@@ -70,6 +135,12 @@ export type Busca = {
   status: "PENDING" | "RUNNING" | "PARTIALLY_COMPLETED" | "COMPLETED" | "FAILED" | "CANCELLED";
   progress: number;
   job_count: number;
+  /** Somas dos jobs: o que a busca rendeu, não só se terminou. */
+  found_count: number;
+  new_count: number;
+  duplicate_count: number;
+  review_count: number;
+  error_count: number;
   created_at: string;
   finished_at: string | null;
 };
@@ -106,6 +177,12 @@ export type Lead = {
   id: string;
   company: string;
   company_name: string;
+  /** Contato e localização vêm anotados: a fila de leads é uma lista de ligações. */
+  phone: string | null;
+  whatsapp: string | null;
+  city: string | null;
+  uf: string | null;
+  opportunities: { code: string; name: string }[];
   stage: string;
   stage_code: string;
   stage_name: string;
@@ -116,6 +193,36 @@ export type Lead = {
   last_contacted_at: string | null;
   next_action_at: string | null;
   created_at: string;
+};
+
+export type Lista = {
+  id: string;
+  name: string;
+  description: string;
+  company_count: number;
+  created_by_email: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** O que o painel mostra. Só número que existe de fato — ver `LeadViewSet.summary`. */
+export type Resumo = {
+  por_estagio: {
+    code: string;
+    name: string;
+    position: number;
+    is_terminal: boolean;
+    is_won: boolean;
+    lead_count: number;
+  }[];
+  total: number;
+  novos_hoje: number;
+  novos_semana: number;
+  contatados_hoje: number;
+  sem_contato: number;
+  ganhos: number;
+  conversao: number | null;
+  melhores_oportunidades: Empresa[];
 };
 
 export type Interacao = {
@@ -135,6 +242,17 @@ export type Anotacao = {
   body: string;
   author_email: string | null;
   created_at: string;
+};
+
+/** De onde veio o dado da empresa (§13 do redesenho). */
+export type Procedencia = {
+  id: string;
+  company: string;
+  provider_name: string;
+  provider_slug: string;
+  external_id: string;
+  collected_at: string;
+  confidence: string;
 };
 
 export type Supressao = {

@@ -1,219 +1,420 @@
 "use client";
 
+import { Building2, Globe, Mail, MapPin, RefreshCw, Target, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import { Botao, Cabecalho, Casca, Erro, Etiqueta, Vazio } from "@/components/casca";
-import { BarraDeLacunas, Score } from "@/components/lacunas";
+import { Casca } from "@/components/casca";
+import { BarraDeLacunas } from "@/components/lacunas";
+import { Ausente, BotaoWhatsApp, Telefone } from "@/components/telefone";
+import { useAviso } from "@/components/ui/aviso";
+import { Botao } from "@/components/ui/botao";
+import { CabecalhoDaPagina } from "@/components/ui/cabecalho";
+import { Etiqueta, Score } from "@/components/ui/etiqueta";
+import { Cartao, Erro, Esqueleto, Vazio } from "@/components/ui/superficie";
 import { errorMessage } from "@/lib/auth";
 import {
   criarLead,
+  empresaPorId,
   lacunasDe,
   listarAnalises,
   listarOportunidades,
+  origensDaEmpresa,
   pontuacaoDaEmpresa,
   reanalisar,
 } from "@/lib/recursos";
-import type { Analise, Oportunidade, Pontuacao } from "@/lib/tipos";
+import type { Analise, EmpresaDetalhe, Oportunidade, Pontuacao, Procedencia } from "@/lib/tipos";
 
 /**
- * O detalhe da empresa: o diagnóstico completo, com evidência.
+ * A ficha da empresa: tudo que se precisa saber antes de discar.
  *
- * A ordem da página é a ordem de uma conversa de venda: quanto vale (score), o que falta
- * (lacunas), o que dá para vender (oportunidades), e por que se afirma isso (achados).
+ * A ordem é a de uma conversa de venda, e **contato vem primeiro** — telefone, WhatsApp,
+ * e-mail e endereço no topo, nunca atrás de "informações técnicas". Depois o diagnóstico: o
+ * que falta, o que dá para vender, e a evidência de cada afirmação.
+ *
+ * As abas separam três perguntas diferentes que antes disputavam a mesma coluna: *o que dá
+ * para vender* (oportunidades), *o que a análise viu* (diagnóstico) e *de onde veio o dado*
+ * (procedência). Contato fica fora de aba: é o que se busca com mais frequência.
  */
+
+const ABAS = [
+  { chave: "oportunidades", rotulo: "Oportunidades" },
+  { chave: "diagnostico", rotulo: "Diagnóstico do site" },
+  { chave: "origem", rotulo: "Origem dos dados" },
+] as const;
+
+type Aba = (typeof ABAS)[number]["chave"];
+
 export default function DetalheDaEmpresa() {
   const { id } = useParams<{ id: string }>();
+  const avisar = useAviso();
+  const [empresa, setEmpresa] = useState<EmpresaDetalhe | null>(null);
   const [pontuacao, setPontuacao] = useState<Pontuacao | null>(null);
   const [analise, setAnalise] = useState<Analise | null>(null);
   const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
+  const [origens, setOrigens] = useState<Procedencia[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<string | null>(null);
+  const [aba, setAba] = useState<Aba>("oportunidades");
 
-  useEffect(() => {
-    Promise.all([
+  const carregar = useCallback(() => {
+    setCarregando(true);
+    setErro(null);
+    return Promise.all([
+      empresaPorId(id),
       pontuacaoDaEmpresa(id),
       listarAnalises({ company: id }),
       listarOportunidades({ company: id, status: "OPEN" }),
+      origensDaEmpresa(id),
     ])
-      .then(([p, a, o]) => {
+      .then(([e, p, a, o, f]) => {
+        setEmpresa(e);
         setPontuacao(p.results[0] ?? null);
         setAnalise(a.results[0] ?? null);
         setOportunidades(o.results);
+        setOrigens(f.results);
       })
       .catch((e) => setErro(errorMessage(e, "Não foi possível carregar a empresa.")))
       .finally(() => setCarregando(false));
   }, [id]);
 
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
+
   if (carregando) {
     return (
       <Casca>
-        <p className="dados text-tinta-fraca text-sm">carregando…</p>
+        <div className="space-y-6">
+          <Esqueleto className="h-8 w-72" />
+          <Esqueleto className="h-24 w-full" />
+          <Esqueleto className="h-64 w-full" />
+        </div>
       </Casca>
     );
   }
 
-  const nome = pontuacao?.company_name ?? analise?.company_name ?? "Empresa";
+  if (erro || !empresa) {
+    return (
+      <Casca>
+        <Erro mensagem={erro ?? "Empresa não encontrada."} aoTentarNovamente={carregar} />
+      </Casca>
+    );
+  }
+
   const lacunas = lacunasDe(analise ?? undefined, Boolean(analise));
+  const endereco = empresa.addresses.find((e) => e.is_primary) ?? empresa.addresses[0];
 
   return (
     <Casca>
-      <Link href="/" className="text-tinta-fraca hover:text-tinta mb-4 inline-block text-sm">
-        ← Radar
-      </Link>
-
-      <Cabecalho
-        titulo={nome}
+      <CabecalhoDaPagina
+        voltar={{ href: "/empresas", rotulo: "Empresas" }}
+        titulo={empresa.name}
+        descricao={[empresa.category, empresa.city && `${empresa.city} — ${empresa.uf}`]
+          .filter(Boolean)
+          .join(" · ")}
         acao={
-          <div className="flex gap-2">
+          <>
             <Botao
-              variante="quieta"
+              variante="secundaria"
+              Icone={RefreshCw}
               onClick={async () => {
-                setAviso(null);
                 try {
                   await reanalisar(id);
-                  setAviso("Análise enfileirada. Atualize em alguns segundos.");
+                  avisar("Análise enfileirada. Atualize em alguns segundos.");
                 } catch (e) {
-                  setAviso(errorMessage(e, "Não foi possível reanalisar."));
+                  avisar(errorMessage(e, "Não foi possível reanalisar."), "erro");
                 }
               }}
             >
               Reanalisar site
             </Botao>
-            <Botao
-              onClick={async () => {
-                setAviso(null);
-                try {
-                  await criarLead(id);
-                  setAviso("Lead criado. Está na Prospecção.");
-                } catch (e) {
-                  setAviso(errorMessage(e, "Não foi possível criar o lead."));
-                }
-              }}
-            >
-              Prospectar
-            </Botao>
-          </div>
+            {empresa.lead_id ? (
+              <Link href={`/leads/${empresa.lead_id}`}>
+                <Botao variante="primaria" Icone={Target}>
+                  No funil: {empresa.lead_stage_name ?? "ver"}
+                </Botao>
+              </Link>
+            ) : (
+              <Botao
+                variante="primaria"
+                Icone={Target}
+                onClick={async () => {
+                  try {
+                    const lead = await criarLead(id);
+                    setEmpresa((atual) =>
+                      atual
+                        ? { ...atual, lead_id: lead.id, lead_stage_name: lead.stage_name }
+                        : atual,
+                    );
+                    avisar("Lead criado. Está na aba Leads.");
+                  } catch (e) {
+                    avisar(errorMessage(e, "Não foi possível criar o lead."), "erro");
+                  }
+                }}
+              >
+                Adicionar ao CRM
+              </Botao>
+            )}
+          </>
         }
       />
 
-      {erro && <Erro mensagem={erro} />}
-      {aviso && <p className="text-acao mb-6 text-sm">{aviso}</p>}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
+        <div className="min-w-0 space-y-6">
+          {/* Contato fora de aba: é o dado mais buscado da tela. */}
+          <Cartao padding={false}>
+            <div className="border-linha flex h-12 items-center border-b px-4">
+              <h2 className="rotulo-secao">Contato</h2>
+            </div>
+            <dl className="grid gap-x-8 gap-y-4 p-4 sm:grid-cols-2">
+              <Dado rotulo="Telefone">
+                <Telefone valor={empresa.phone} />
+              </Dado>
+              <Dado rotulo="WhatsApp confirmado">
+                <BotaoWhatsApp numero={empresa.whatsapp} rotulo="Abrir conversa" />
+              </Dado>
+              <Dado rotulo="E-mail" Icone={Mail}>
+                {empresa.email ? (
+                  <a href={`mailto:${empresa.email}`} className="text-tinta hover:text-acao">
+                    {empresa.email}
+                  </a>
+                ) : (
+                  <Ausente />
+                )}
+              </Dado>
+              <Dado rotulo="Site" Icone={Globe}>
+                {empresa.website ? (
+                  <a
+                    href={empresa.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-tinta hover:text-acao break-all"
+                  >
+                    {empresa.website.replace(/^https?:\/\//, "")}
+                  </a>
+                ) : empresa.website_status === "NOT_FOUND" ? (
+                  <Etiqueta tom="lacuna">não identificado nas fontes</Etiqueta>
+                ) : (
+                  <Ausente titulo="Ainda não verificado" />
+                )}
+              </Dado>
+              <Dado rotulo="Endereço" Icone={MapPin} largo>
+                {endereco ? (
+                  <span className="text-tinta">
+                    {[endereco.street, endereco.number, endereco.district]
+                      .filter(Boolean)
+                      .join(", ")}
+                    {endereco.street && " — "}
+                    {endereco.city_name}/{endereco.uf}
+                  </span>
+                ) : (
+                  <Ausente />
+                )}
+              </Dado>
+              {empresa.social_profiles.length > 0 && (
+                <Dado rotulo="Redes" largo>
+                  <span className="flex flex-wrap gap-3">
+                    {empresa.social_profiles.map((perfil) => (
+                      <a
+                        key={perfil.id}
+                        href={perfil.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-tinta hover:text-acao"
+                      >
+                        {perfil.network_label}
+                      </a>
+                    ))}
+                  </span>
+                </Dado>
+              )}
+            </dl>
+          </Cartao>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_20rem]">
-        <div className="space-y-8">
-          <Bloco titulo="O que falta">
-            <BarraDeLacunas lacunas={lacunas} rotulos />
-            {!analise && (
-              <p className="text-tinta-fraca mt-3 text-sm">
-                O site desta empresa ainda não foi verificado.
-              </p>
-            )}
-          </Bloco>
+          {/* Abas */}
+          <div>
+            <div className="border-linha mb-4 flex gap-1 border-b" role="tablist">
+              {ABAS.map(({ chave, rotulo }) => (
+                <button
+                  key={chave}
+                  role="tab"
+                  aria-selected={aba === chave}
+                  onClick={() => setAba(chave)}
+                  className={`text-corpo -mb-px border-b-2 px-3 py-2 font-medium transition-colors ${
+                    aba === chave
+                      ? "border-acao text-tinta"
+                      : "text-tinta-fraca hover:text-tinta border-transparent"
+                  }`}
+                >
+                  {rotulo}
+                </button>
+              ))}
+            </div>
 
-          <Bloco titulo="Oportunidades">
-            {oportunidades.length === 0 ? (
-              <Vazio titulo="Nenhuma oportunidade aberta." />
-            ) : (
-              <ul className="space-y-3">
-                {oportunidades.map((o) => (
-                  <li key={o.id} className="border-linha border-l-2 pl-3">
-                    <div className="text-tinta font-medium">{o.type_name}</div>
-                    <p className="text-tinta-fraca mt-0.5 text-sm">{o.type_description}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Bloco>
+            {aba === "oportunidades" &&
+              (oportunidades.length === 0 ? (
+                <Vazio
+                  titulo="Nenhuma oportunidade aberta."
+                  descricao="Oportunidade só aparece depois que a análise roda — ausência de dado não vira diagnóstico."
+                  Icone={Target}
+                />
+              ) : (
+                <ul className="space-y-2">
+                  {oportunidades.map((o) => (
+                    <li key={o.id} className="border-linha bg-papel-alto rounded-md border p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="text-tinta font-medium">{o.type_name}</h3>
+                          <p className="text-apoio text-tinta-fraca mt-1">{o.type_description}</p>
+                        </div>
+                        <Etiqueta tom="lacuna">oportunidade</Etiqueta>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ))}
 
-          <Bloco titulo="O que a análise viu">
-            {!analise ? (
-              <Vazio titulo="Site ainda não verificado." />
-            ) : analise.status !== "OK" ? (
-              <div className="space-y-2">
-                <Etiqueta tom="perdido">{rotuloDaAnalise(analise.status)}</Etiqueta>
-                <p className="text-tinta-fraca text-sm">{analise.error_detail}</p>
-              </div>
-            ) : (
-              <>
-                <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
-                  <Dado rotulo="Endereço" valor={analise.final_url} />
-                  <Dado rotulo="HTTP" valor={String(analise.http_status)} />
-                  <Dado rotulo="Resposta" valor={`${analise.response_time_ms} ms`} />
-                </dl>
-                {analise.findings.length > 0 && (
-                  <ul className="mt-4 space-y-2">
-                    {analise.findings.map((f) => (
-                      <li key={f.id} className="flex gap-3 text-sm">
-                        <span className="w-16 shrink-0">
+            {aba === "diagnostico" &&
+              (!analise ? (
+                <Vazio
+                  titulo="Site ainda não verificado."
+                  descricao="Enquanto a análise não roda, a resposta honesta é 'ainda não sei'."
+                  Icone={Globe}
+                />
+              ) : analise.status !== "OK" ? (
+                <Cartao>
+                  <div className="flex items-start gap-3">
+                    <TriangleAlert size={16} className="text-perdido mt-0.5 shrink-0" aria-hidden />
+                    <div>
+                      <p className="text-tinta font-medium">{rotuloDaAnalise(analise.status)}</p>
+                      <p className="text-apoio text-tinta-fraca mt-1">{analise.error_detail}</p>
+                    </div>
+                  </div>
+                </Cartao>
+              ) : (
+                <Cartao>
+                  <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                    <Dado rotulo="Endereço final">
+                      <span className="dados text-apoio truncate">{analise.final_url}</span>
+                    </Dado>
+                    <Dado rotulo="HTTP">
+                      <span className="dados">{analise.http_status}</span>
+                    </Dado>
+                    <Dado rotulo="Resposta">
+                      <span className="dados">{analise.response_time_ms} ms</span>
+                    </Dado>
+                  </dl>
+                  {analise.findings.length > 0 && (
+                    <ul className="border-linha mt-4 space-y-2 border-t pt-4">
+                      {analise.findings.map((f) => (
+                        <li key={f.id} className="flex items-start gap-3">
                           <Etiqueta tom={f.severity === "HIGH" ? "lacuna" : "neutro"}>
                             {f.severity === "HIGH" ? "alta" : f.severity.toLowerCase()}
                           </Etiqueta>
+                          <span className="text-apoio text-tinta-media">
+                            {f.detail || f.code_label}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Cartao>
+              ))}
+
+            {aba === "origem" &&
+              (origens.length === 0 ? (
+                <Vazio titulo="Sem procedência registrada." Icone={Building2} />
+              ) : (
+                <Cartao>
+                  <ul className="divide-linha divide-y">
+                    {origens.map((origem) => (
+                      <li
+                        key={origem.id}
+                        className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-2.5 first:pt-0 last:pb-0"
+                      >
+                        <span className="text-tinta w-40 font-medium">{origem.provider_name}</span>
+                        <span className="dados text-apoio text-tinta-media">
+                          {origem.external_id}
                         </span>
-                        <span className="text-tinta-fraca">{f.detail || f.code_label}</span>
+                        <span className="text-legenda text-tinta-fraca ml-auto">
+                          coletado em {new Date(origem.collected_at).toLocaleDateString("pt-BR")} ·
+                          confiança {origem.confidence}
+                        </span>
                       </li>
                     ))}
                   </ul>
-                )}
-              </>
-            )}
-          </Bloco>
+                </Cartao>
+              ))}
+          </div>
         </div>
 
-        <aside className="space-y-6">
-          <div className="border-linha bg-papel-alto rounded-lg border p-5">
-            <div className="flex items-baseline gap-3">
+        {/* Coluna de prioridade: score, o que falta, e o cálculo. */}
+        <aside className="space-y-4 lg:sticky lg:top-8">
+          <Cartao>
+            <div className="flex items-baseline gap-2">
               <Score valor={pontuacao?.value ?? null} tamanho="lg" />
-              <span className="text-tinta-fraca text-xs">de 100</span>
+              <span className="text-apoio text-tinta-fraca">de 100</span>
             </div>
-            <p className="text-tinta-fraca mt-1 text-xs">Prioridade de abordagem</p>
+            <p className="text-legenda text-tinta-fraca mt-1">Prioridade de abordagem</p>
 
             {pontuacao && pontuacao.components.length > 0 && (
-              <ul className="border-linha mt-5 space-y-2 border-t pt-4">
+              <ul className="border-linha mt-4 space-y-2 border-t pt-4">
                 {pontuacao.components.map((c) => (
-                  <li key={c.rule_code} className="flex gap-3 text-sm">
+                  <li key={c.rule_code} className="flex gap-3">
                     <span
-                      className={`dados w-8 shrink-0 text-right font-semibold ${
+                      className={`dados text-apoio w-8 shrink-0 text-right font-semibold ${
                         c.points > 0 ? "text-lacuna" : "text-tinta-fraca"
                       }`}
                     >
                       {c.points > 0 ? `+${c.points}` : c.points}
                     </span>
-                    <span className="text-tinta-fraca">{c.reason}</span>
+                    <span className="text-apoio text-tinta-media">{c.reason}</span>
                   </li>
                 ))}
               </ul>
             )}
             {pontuacao && (
-              <p className="text-tinta-fraca/70 dados mt-4 text-[11px]">
+              <p className="dados text-legenda text-tinta-fraca/70 mt-4">
                 regras {pontuacao.version}
               </p>
             )}
-          </div>
+          </Cartao>
+
+          <Cartao>
+            <h2 className="rotulo-secao mb-3">O que falta</h2>
+            <BarraDeLacunas lacunas={lacunas} rotulos />
+            {!analise && (
+              <p className="text-legenda text-tinta-fraca mt-3">
+                O site desta empresa ainda não foi verificado.
+              </p>
+            )}
+          </Cartao>
         </aside>
       </div>
     </Casca>
   );
 }
 
-function Bloco({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function Dado({
+  rotulo,
+  children,
+  Icone,
+  largo = false,
+}: {
+  rotulo: string;
+  children: React.ReactNode;
+  Icone?: typeof Mail;
+  largo?: boolean;
+}) {
   return (
-    <section>
-      <h2 className="text-tinta-fraca mb-3 text-xs font-semibold tracking-[0.1em] uppercase">
-        {titulo}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-function Dado({ rotulo, valor }: { rotulo: string; valor: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-tinta-fraca text-xs">{rotulo}</dt>
-      <dd className="dados text-tinta truncate text-sm">{valor}</dd>
+    <div className={`min-w-0 ${largo ? "sm:col-span-2" : ""}`}>
+      <dt className="text-legenda text-tinta-fraca flex items-center gap-1.5">
+        {Icone && <Icone size={12} aria-hidden />}
+        {rotulo}
+      </dt>
+      <dd className="text-corpo mt-1">{children}</dd>
     </div>
   );
 }

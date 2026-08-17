@@ -42,7 +42,7 @@ export function BarraDeLacunas({
                 estado === null ? "não verificado" : estado ? "falta" : "tem"
               }`}
               className={[
-                "h-2 w-7 rounded-[2px] sm:w-9",
+                "h-2 w-7 rounded-xs sm:w-9",
                 estado === true
                   ? "bg-lacuna"
                   : estado === false
@@ -59,7 +59,7 @@ export function BarraDeLacunas({
             <span
               key={chave}
               className={[
-                "w-7 text-[9px] uppercase tracking-[0.08em] sm:w-9",
+                "rotulo-lacuna w-7 sm:w-9",
                 lacunas[chave] === true ? "text-lacuna" : "text-tinta-fraca/60",
               ].join(" ")}
             >
@@ -69,23 +69,5 @@ export function BarraDeLacunas({
         </div>
       )}
     </div>
-  );
-}
-
-/** O score, grande e em mono. É a prioridade de quem liga, então é a primeira coisa lida. */
-export function Score({ valor, tamanho = "md" }: { valor: number | null; tamanho?: "md" | "lg" }) {
-  if (valor === null) {
-    return <span className="dados text-tinta-fraca/50 text-2xl">—</span>;
-  }
-  const intensidade =
-    valor >= 30 ? "text-lacuna" : valor > 0 ? "text-tinta" : "text-tinta-fraca/50";
-  return (
-    <span
-      className={`dados font-semibold leading-none ${intensidade} ${
-        tamanho === "lg" ? "text-6xl" : "text-3xl"
-      }`}
-    >
-      {valor}
-    </span>
   );
 }

@@ -6,20 +6,25 @@ import type {
   Anotacao,
   Busca,
   Categoria,
+  Empresa,
+  EmpresaDetalhe,
   Estado,
   Funil,
   Interacao,
   JobDeBusca,
   Lacunas,
   Lead,
+  Lista,
   Municipio,
   Oportunidade,
   Pagina,
   Pontuacao,
+  Procedencia,
+  Resumo,
   Supressao,
 } from "./tipos";
 
-function qs(params: Record<string, string | number | undefined>): string {
+function qs(params: Record<string, string | number | boolean | undefined>): string {
   const busca = new URLSearchParams();
   for (const [chave, valor] of Object.entries(params)) {
     if (valor !== undefined && valor !== "") busca.set(chave, String(valor));
@@ -39,6 +44,39 @@ export const listarMunicipios = (params: { uf?: string; q?: string } = {}) =>
 
 export const listarCategorias = () =>
   apiFetch<Pagina<Categoria>>("/companies/categories/?page_size=100");
+
+/**
+ * Os filtros da tela Empresas. Os nomes são os da API de propósito: a URL da tela e a
+ * query string da requisição são a mesma coisa, então não existe tabela de tradução no meio
+ * — nem o bug de esquecer de atualizá-la.
+ */
+export type FiltrosDeEmpresa = {
+  q?: string;
+  uf?: string;
+  city?: string;
+  category?: string;
+  site?: string;
+  has_phone?: boolean | string;
+  has_whatsapp?: boolean | string;
+  has_email?: boolean | string;
+  opportunity?: string;
+  score_min?: string | number;
+  score_max?: string | number;
+  in_crm?: boolean | string;
+  stage?: string;
+  ordering?: string;
+  page?: number | string;
+  page_size?: number;
+};
+
+export const listarEmpresas = (filtros: FiltrosDeEmpresa = {}) =>
+  apiFetch<Pagina<Empresa>>(`/companies/${qs(filtros)}`);
+
+export const empresaPorId = (id: string) => apiFetch<EmpresaDetalhe>(`/companies/${id}/`);
+
+/** Procedência: de onde veio o dado, e quando. Mora em `providers` (ver ADR-0003). */
+export const origensDaEmpresa = (empresa: string) =>
+  apiFetch<Pagina<Procedencia>>(`/providers/sources/${qs({ company: empresa })}`);
 
 // --- Análise -----------------------------------------------------------------
 
@@ -92,7 +130,7 @@ export const cancelarBusca = (id: string) =>
 
 export const listarFunis = () => apiFetch<Pagina<Funil>>("/crm/pipelines/");
 
-export const listarLeads = (params: { stage?: string; page?: number } = {}) =>
+export const listarLeads = (params: { stage?: string; page?: number; page_size?: number } = {}) =>
   apiFetch<Pagina<Lead>>(`/crm/leads/${qs(params)}`);
 
 export const leadPorId = (id: string) => apiFetch<Lead>(`/crm/leads/${id}/`);
@@ -120,6 +158,41 @@ export const anotacoesDoLead = (id: string) =>
 
 export const anotar = (id: string, body: string) =>
   apiFetch<Anotacao>(`/crm/leads/${id}/notes/`, { method: "POST", body: JSON.stringify({ body }) });
+
+export const resumoDoCrm = () => apiFetch<Resumo>("/crm/leads/summary/");
+
+export const criarLeadsEmLote = (company_ids: string[]) =>
+  apiFetch<{ criados: number; ja_existiam: number; suprimidos: { id: string; name: string }[] }>(
+    "/crm/leads/bulk/",
+    { method: "POST", body: JSON.stringify({ company_ids }) },
+  );
+
+// --- Listas ------------------------------------------------------------------
+
+export const listarListas = () => apiFetch<Pagina<Lista>>("/crm/lists/?page_size=100");
+
+export const listaPorId = (id: string) => apiFetch<Lista>(`/crm/lists/${id}/`);
+
+export const criarLista = (name: string, description = "") =>
+  apiFetch<Lista>("/crm/lists/", {
+    method: "POST",
+    body: JSON.stringify({ name, description }),
+  });
+
+export const adicionarNaLista = (id: string, company_ids: string[]) =>
+  apiFetch<{ adicionados: number; ja_estavam: number }>(`/crm/lists/${id}/items/`, {
+    method: "POST",
+    body: JSON.stringify({ company_ids }),
+  });
+
+export const removerDaLista = (id: string, company_ids: string[]) =>
+  apiFetch<{ removidos: number }>(`/crm/lists/${id}/items/`, {
+    method: "DELETE",
+    body: JSON.stringify({ company_ids }),
+  });
+
+export const empresasDaLista = (id: string, pagina = 1) =>
+  apiFetch<Pagina<Empresa>>(`/crm/lists/${id}/companies/${qs({ page: pagina })}`);
 
 export const listarSupressoes = () => apiFetch<Pagina<Supressao>>("/crm/suppressions/");
 

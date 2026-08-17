@@ -1,8 +1,14 @@
 "use client";
 
+import { Radar } from "lucide-react";
+
 import { useEffect, useState } from "react";
 
-import { Botao, Cabecalho, Casca, Erro, Etiqueta, Vazio } from "@/components/casca";
+import { Casca } from "@/components/casca";
+import { Botao } from "@/components/ui/botao";
+import { CabecalhoDaPagina } from "@/components/ui/cabecalho";
+import { Etiqueta } from "@/components/ui/etiqueta";
+import { Erro, EsqueletoDeTabela, Vazio } from "@/components/ui/superficie";
 import { errorMessage } from "@/lib/auth";
 import {
   cancelarBusca,
@@ -61,7 +67,7 @@ export default function Buscas() {
 
   return (
     <Casca>
-      <Cabecalho
+      <CabecalhoDaPagina
         titulo="Buscas"
         descricao="Escolha onde e o quê procurar. A varredura roda em segundo plano."
       />
@@ -75,9 +81,13 @@ export default function Buscas() {
       </h2>
 
       {carregando ? (
-        <p className="dados text-tinta-fraca text-sm">carregando…</p>
+        <EsqueletoDeTabela linhas={3} colunas={4} />
       ) : buscas.length === 0 ? (
-        <Vazio titulo="Nenhuma busca ainda. Comece pelo formulário acima." />
+        <Vazio
+          titulo="Nenhuma busca ainda."
+          descricao="Escolha estado, segmento e fonte no formulário acima para descobrir empresas novas."
+          Icone={Radar}
+        />
       ) : (
         <ul className="space-y-3">
           {buscas.map((b) => (
@@ -234,9 +244,20 @@ function ItemDeBusca({ busca, aoMudar }: { busca: Busca; aoMudar: () => void }) 
             />
           </div>
           <span className="dados text-tinta-fraca w-10 text-right text-xs">{busca.progress}%</span>
+          {/* O que a busca rendeu, não só se terminou: achadas, novas, já conhecidas. */}
+          {busca.found_count > 0 && (
+            <span className="dados text-tinta-fraca text-xs whitespace-nowrap">
+              {busca.found_count} achadas ·{" "}
+              <span className="text-lacuna">{busca.new_count} novas</span>
+              {busca.duplicate_count > 0 && ` · ${busca.duplicate_count} já conhecidas`}
+              {busca.error_count > 0 && (
+                <span className="text-perdido"> · {busca.error_count} com erro</span>
+              )}
+            </span>
+          )}
           {!["COMPLETED", "CANCELLED", "FAILED"].includes(busca.status) && (
             <Botao
-              variante="quieta"
+              variante="secundaria"
               onClick={async () => {
                 await cancelarBusca(busca.id);
                 aoMudar();

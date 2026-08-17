@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Archivo, Azeret_Mono, Chivo } from "next/font/google";
 
+import { ProvedorDeAvisos } from "@/components/ui/aviso";
+
 import "./globals.css";
 
 /**
@@ -44,7 +46,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={`${display.variable} ${corpo.variable} ${dados.variable}`}>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        {/* Um provedor só para toda a aplicação: confirmação de ação aparece sempre no mesmo
+            canto, com o mesmo formato, venha de qual tela vier. */}
+        <ProvedorDeAvisos>{children}</ProvedorDeAvisos>
+      </body>
     </html>
   );
 }
