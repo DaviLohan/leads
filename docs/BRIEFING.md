@@ -103,11 +103,20 @@ O frontend faz *rewrite* de `/api/*` para o backend — o navegador vê **uma or
 python manage.py create_organization   # a primeira org e o primeiro usuário
 python manage.py import_ibge           # 27 estados, 5.571 municípios (não vem no seed)
 python manage.py seed_providers        # OSM/Overpass e MockProvider
-python manage.py seed_dev_data         # categorias e dados fictícios
+python manage.py seed_categories       # 48 ramos de atuação + tags de cada fonte
 python manage.py seed_opportunity_types
 python manage.py seed_score_rules
 python manage.py seed_pipeline         # funil padrão da organização
+python manage.py seed_dev_data         # só desenvolvimento: dados fictícios (exige DEBUG)
 ```
+
+`seed_categories` é catálogo de **produto**, e por isso roda em produção. Até 17/08/2026 as
+categorias moravam dentro do `seed_dev_data`, que recusa rodar sem `DEBUG=True` — o efeito era
+não existir categoria alguma em produção e, portanto, nenhuma busca possível. Adicionar um
+ramo é uma linha de dados naquele arquivo; ele usa `update_or_create` para que corrigir uma
+tag errada propague, mantendo `is_active` fora do `defaults` (reimportar não reativa o que
+alguém desligou no admin). `seed_dev_data` ainda chama `seed_categories`, para o `make seed`
+seguir entregando uma base utilizável.
 
 Não existe cadastro público: a primeira organização nasce por comando, os demais usuários
 entram por convite.
@@ -313,7 +322,10 @@ Resumo operacional; o detalhe e o *porquê* de cada uma estão em `CLAUDE.md`.
 **cidade × categoria × fonte** — a menor unidade que dá para executar, repetir e reportar
 sozinha. Recusa antes de criar o que passar de `DISCOVERY_MAX_JOBS_PER_SEARCH`. `claim_job`
 usa `select_for_update` (é ele, não a fila, que garante execução única). Progresso e situação
-são **derivados** dos jobs, nunca acumulados.
+são **derivados** dos jobs, nunca acumulados. `_classificar` liga a empresa encontrada à
+categoria do job (`CompanyCategory`, `assigned_by=PROVIDER`) na mesma transação dos
+`SearchResult` — **menos** os `POSSIBLE`, cujo `company_id` é da empresa candidata que o dedup
+não confirmou. O catálogo de ramos é `seed_categories` (48 hoje), fora do `seed_dev_data`.
 
 **2. Fontes.** Provider devolve `RawResult` e não toca o banco (ADR-0003); quem valida,
 deduplica e persiste é `providers/ingestion.py`. `if provider == "x"` fora de `apps/providers`
@@ -372,6 +384,7 @@ não é meu lead" é pela anotação `lead_id__isnull`.
 | Fonte de dados nova | `providers/` (subclasse de `BaseProvider` + registro em `registry.py`). Nunca escrever no banco a partir dela |
 | Coluna nova no CSV | `companies/export.py` (`COLUNAS`) |
 | Estágio novo no funil | `crm/management/commands/seed_pipeline.py` |
+| Ramo de comércio novo | `companies/management/commands/seed_categories.py` (`CATEGORIAS`) — uma linha com slug, nome e a tag OSM; depois `python manage.py seed_categories`. Sem migration, sem frontend: o menu e o filtro leem a API |
 | Endpoint novo | app correspondente: `views.py` + `serializers.py` + `urls.py`; e `lib/recursos.ts` no frontend. **Rode `check --deploy` depois** (ver §2) |
 | `SerializerMethodField` novo | O tipo do schema **não** é inferido: ou anotação de retorno (`-> list[dict[str, str]]`), ou `@extend_schema_field(...)` quando o retorno é `.data` de outro serializer — `ReturnList` faz o mypy recusar a anotação. Sem um dos dois, a CI cai |
 | Filtro com `method=` | Passe também `field_name=` apontando para um caminho real do model (ex.: `addresses__city`). Não muda o que o filtro faz; é o que permite o gerador de schema resolver o parâmetro |

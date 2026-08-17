@@ -251,8 +251,24 @@ incrementado por worker paralelo diverge, e a divergência vira busca eternament
 andamento" com tudo pronto. Na listagem eles vêm de anotação, senão é N+1 numa tela que a
 interface consulta em laço.
 
-Antes de usar: `seed_providers` e as categorias do `seed_dev_data` (é o `provider_mapping`
-que traduz "Dentistas" para as tags de cada fonte).
+O catálogo de ramos é `companies/management/commands/seed_categories.py` — 48 categorias, e
+é o `provider_mapping` de cada uma que traduz "Lojas de roupas" para `shop=clothes`. Ele
+**não** tem guarda de `DEBUG`, ao contrário de onde morava antes (`seed_dev_data`): categoria
+é catálogo de produto, e presa lá dentro não existia categoria nenhuma em produção — logo,
+nenhuma busca possível. `update_or_create` para corrigir tag errada em banco já semeado, com
+`is_active` **fora** do `defaults`: reimportar não reativa ramo que alguém desligou.
+
+Uma tag por categoria porque várias viram **AND** no Overpass QL. Categoria sem mapeamento
+para a fonte não gera job — entra no menu e produz busca vazia, por isso há teste cobrindo.
+
+**A empresa ingerida é classificada em `discovery/services._classificar`**, dentro da mesma
+transação que grava os `SearchResult`. Antes ninguém gravava `CompanyCategory`: o job sabia o
+que tinha procurado, o filtro `?category=` devolvia vazio e a coluna ficava em branco, sem
+erro em lugar nenhum. `POSSIBLE` fica de fora — ali `company_id` é da empresa *candidata*,
+que o dedup não confirmou; classificar é a mesma assimetria que o `POSSIBLE` existe para
+evitar. Idempotência pela `UniqueConstraint(company, category)`, não por `if exists`.
+
+Antes de usar: `seed_providers` e `seed_categories`.
 
 ## Análise de site
 

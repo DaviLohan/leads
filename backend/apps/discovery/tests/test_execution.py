@@ -6,7 +6,7 @@ aqui é a lógica de verdade — não um dublê de fila.
 
 import pytest
 
-from apps.companies.models import Company
+from apps.companies.models import Category, Company, CompanyCategory
 from apps.discovery.models import JobStatus, SearchJob, SearchResult, SearchStatus
 from apps.discovery.services import (
     cancel_search,
@@ -209,6 +209,84 @@ class TestDisparo:
         SearchJob.objects.filter(pk=jobs[0].pk).update(status=JobStatus.COMPLETED)
 
         assert dispatch_search(str(busca.pk)) == 1
+
+
+class TestClassificacao:
+    """A empresa encontrada tem que sair do job já sabendo o ramo dela.
+
+    Antes disto o job sabia o que havia procurado e ninguém gravava o vínculo. A falha era
+    silenciosa: `?category=` devolvia vazio e a coluna Categoria ficava em branco, sem erro
+    em lugar nenhum.
+    """
+
+    def test_empresa_encontrada_recebe_a_categoria_do_job(self, criar_busca, dentistas):
+        job = claim_job(plan_search(criar_busca())[0].pk)
+
+        run_job(job)
+
+        empresas = Company.objects.filter(company_categories__category=dentistas)
+        assert empresas.count() == Company.objects.count()
+        assert empresas.exists()
+
+    def test_veio_da_fonte_nao_de_humano(self, criar_busca):
+        """`assigned_by` é o que permite um dia distinguir classificação da fonte de
+        correção feita à mão, sem perder uma."""
+        job = claim_job(plan_search(criar_busca())[0].pk)
+
+        run_job(job)
+
+        assert set(CompanyCategory.objects.values_list("assigned_by", flat=True)) == {
+            CompanyCategory.AssignedBy.PROVIDER
+        }
+
+    def test_possible_nao_classifica_a_empresa_parecida(self, criar_busca, londrina):
+        """`POSSIBLE` carrega o `company_id` da empresa *candidata* — a que a deduplicação
+        não teve certeza de ser a mesma, e que por isso `ingestion` recusa persistir.
+
+        Gravar o ramo ali é a mesma assimetria que o dedup evita: não classificar custa uma
+        célula vazia, classificar errado enfia um ramo dentro de uma empresa que pode ser
+        outra. Foi exatamente o que a primeira versão desta função fazia."""
+        from apps.companies.models import CompanyAddress
+
+        parecida = Company.objects.create(name="Clínica Odontológica São Pedro")
+        CompanyAddress.objects.create(company=parecida, city=londrina)
+
+        run_job(claim_job(plan_search(criar_busca())[0].pk))
+
+        assert SearchResult.objects.filter(match_type="POSSIBLE", company=parecida).exists()
+        assert not CompanyCategory.objects.filter(company=parecida).exists()
+
+    def test_reexecutar_o_job_nao_duplica_o_vinculo(self, criar_busca):
+        """A mesma task reentregue pelo broker (`acks_late`) roda duas vezes. Quem impede a
+        duplicata é a `UniqueConstraint(company, category)`, não `if exists` em Python."""
+        job = claim_job(plan_search(criar_busca())[0].pk)
+        run_job(job)
+        antes = CompanyCategory.objects.count()
+
+        SearchJob.objects.filter(pk=job.pk).update(status=JobStatus.SCHEDULED)
+        run_job(claim_job(job.pk))
+
+        assert CompanyCategory.objects.count() == antes
+
+    def test_dois_ramos_na_mesma_empresa_somam_em_vez_de_sobrescrever(self, criar_busca, fonte):
+        """A unicidade é do par (empresa, categoria), não da empresa: quem aparece em dois
+        ramos acumula os dois. Se fosse por empresa, a segunda busca apagaria a primeira
+        classificação e a tabela mudaria de categoria sozinha."""
+        # Mesma tag de propósito: é o que faz o Mock devolver as mesmas empresas nas duas
+        # buscas, que é a situação a testar. O Mock respeita o filtro de tags como a fonte
+        # real, então uma tag diferente devolveria zero resultado.
+        outra = Category.objects.create(
+            slug="clinicas",
+            name="Clínicas",
+            provider_mapping={fonte.slug: {"amenity": "dentist"}},
+        )
+        run_job(claim_job(plan_search(criar_busca())[0].pk))
+        empresas = Company.objects.count()
+
+        run_job(claim_job(plan_search(criar_busca(category_ids=[str(outra.id)]))[0].pk))
+
+        assert empresas > 0
+        assert CompanyCategory.objects.count() == empresas * 2
 
 
 class TestCancelamento:

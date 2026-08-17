@@ -18,7 +18,8 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from apps.companies.models import Category
+from apps.companies.dedup import MatchType
+from apps.companies.models import Category, CompanyCategory
 from apps.discovery.models import (
     JOB_TERMINAL,
     JobStatus,
@@ -156,6 +157,7 @@ def run_job(job: SearchJob) -> SearchJob:
 
     with transaction.atomic():
         _gravar_resultados(job, relatorio)
+        _classificar(job, relatorio)
 
         job.found_count = relatorio.total
         job.new_count = relatorio.created
@@ -169,6 +171,42 @@ def run_job(job: SearchJob) -> SearchJob:
 
     refresh_search_status(job.search)
     return job
+
+
+def _classificar(job: SearchJob, relatorio) -> None:
+    """Liga cada empresa encontrada à categoria que o job buscou.
+
+    A escrita mora aqui, e não em `providers/ingestion.py`, porque a camada de provider
+    conhece tags de fonte — não conhece "ramo de atuação". Quem tem `job.category` é o
+    `discovery`, e `ingest_city` continua com a assinatura de sempre.
+
+    Sem isto a empresa descoberta nascia sem categoria nenhuma: o job sabia o que tinha
+    procurado e ninguém gravava. O efeito era silencioso — o filtro `?category=` devolvia
+    vazio e a coluna Categoria ficava em branco, sem erro em lugar nenhum.
+
+    `is_primary` fica no default `False`: a anotação de `companies/queries.py` ordena por
+    `-is_primary, created_at`, então quem aparece na tabela é a categoria da primeira busca
+    que achou a empresa. Determinístico, e sem uma consulta a mais por empresa para descobrir
+    quem já tinha categoria.
+
+    **`POSSIBLE` fica de fora.** Nesses registros `company_id` aponta para a empresa
+    *candidata* — a que a deduplicação não teve certeza de ser a mesma, e por isso
+    `providers/ingestion.py` recusa persistir e manda para revisão humana. Classificar ali é
+    a mesma assimetria que o dedup existe para evitar: não classificar custa uma célula
+    vazia; classificar errado grava um ramo dentro de uma empresa que pode ser outra.
+    """
+    vinculos = [
+        CompanyCategory(
+            company_id=registro.company_id,
+            category=job.category,
+            assigned_by=CompanyCategory.AssignedBy.PROVIDER,
+        )
+        for registro in relatorio.records
+        if registro.company_id is not None and registro.match_type != MatchType.POSSIBLE
+    ]
+    # A idempotência é da `UniqueConstraint(company, category)`, não de `if exists` em
+    # Python: a mesma task reentregue pelo broker (`acks_late`) não pode duplicar.
+    CompanyCategory.objects.bulk_create(vinculos, ignore_conflicts=True)
 
 
 def _gravar_resultados(job: SearchJob, relatorio) -> None:

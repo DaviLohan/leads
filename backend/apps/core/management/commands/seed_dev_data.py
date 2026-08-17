@@ -8,23 +8,11 @@ from __future__ import annotations
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.accounts.models import Membership, Organization, Role
 from apps.accounts.services import create_organization_with_owner
-
-# Categorias mínimas para o Radar funcionar, com a tradução para as tags do OSM. É o
-# `provider_mapping` (Etapa 5) que evita categoria hardcoded dentro do provider.
-CATEGORIAS = [
-    ("dentistas", "Dentistas", {"osm-overpass": {"amenity": "dentist"}}),
-    ("padarias", "Padarias", {"osm-overpass": {"shop": "bakery"}}),
-    ("restaurantes", "Restaurantes", {"osm-overpass": {"amenity": "restaurant"}}),
-    ("farmacias", "Farmácias", {"osm-overpass": {"amenity": "pharmacy"}}),
-    ("academias", "Academias", {"osm-overpass": {"leisure": "fitness_centre"}}),
-    ("veterinarias", "Veterinárias", {"osm-overpass": {"amenity": "veterinary"}}),
-    ("oficinas", "Oficinas mecânicas", {"osm-overpass": {"shop": "car_repair"}}),
-    ("saloes", "Salões de beleza", {"osm-overpass": {"shop": "hairdresser"}}),
-]
 
 DEV_ORG = "Organização de Desenvolvimento"
 DEV_EMAIL = "admin@leads.local"
@@ -63,11 +51,10 @@ class Command(BaseCommand):
         )
 
     def _categorias(self) -> None:
-        """Idempotente: reexecutar não duplica nem sobrescreve o que foi ajustado à mão."""
-        from apps.companies.models import Category
+        """Delega ao `seed_categories`.
 
-        for slug, nome, mapeamento in CATEGORIAS:
-            Category.objects.get_or_create(
-                slug=slug, defaults={"name": nome, "provider_mapping": mapeamento}
-            )
-        self.stdout.write(f"Categorias: {Category.objects.count()}")
+        O catálogo de ramos saiu daqui: é dado de produto, e ficar dentro de um comando que
+        recusa rodar sem `DEBUG=True` significava não existir categoria em produção.
+        A chamada continua para o `make seed` seguir preparando uma base utilizável.
+        """
+        call_command("seed_categories")
