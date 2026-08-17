@@ -97,9 +97,12 @@ def plan_search(search: Search) -> list[SearchJob]:
 
     teto = settings.DISCOVERY_MAX_JOBS_PER_SEARCH
     if len(combinacoes) > teto:
+        # "job" e "teto" são palavras nossas, não de quem usa o produto. E o número não é a
+        # contagem de municípios: é uma varredura por município e ramo, então dizer só
+        # "municípios" ficaria impreciso assim que a busca aceitar mais de um ramo.
         raise SearchPlanError(
-            f"Esta busca geraria {len(combinacoes)} jobs, acima do teto de {teto}. "
-            "Recorte por município ou categoria."
+            f"Esta busca daria {len(combinacoes)} varreduras (uma por município e ramo), e o "
+            f"limite é {teto} por busca. Escolha alguns municípios em vez do estado inteiro."
         )
 
     with transaction.atomic():

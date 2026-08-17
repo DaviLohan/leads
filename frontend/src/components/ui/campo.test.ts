@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { filtrarOpcoes, moverIndice, type Opcao } from "@/components/ui/campo";
+import {
+  adicionarFicha,
+  filtrarOpcoes,
+  moverIndice,
+  removerFicha,
+  sugestoesRestantes,
+  type Opcao,
+} from "@/components/ui/campo";
 
 /**
  * As duas peças com lógica de verdade dentro de `Selecao`.
@@ -82,5 +89,40 @@ describe("moverIndice", () => {
 
   it("tecla sem efeito não move", () => {
     expect(moverIndice(2, 5, "a")).toBe(2);
+  });
+});
+
+describe("fichas da escolha múltipla", () => {
+  it("adiciona no fim", () => {
+    expect(adicionarFicha(["sp"], "campinas")).toEqual(["sp", "campinas"]);
+  });
+
+  it("não repete", () => {
+    // A mesma cidade reaparece na sugestão seguinte; repetir daria dois `city_ids` iguais.
+    expect(adicionarFicha(["sp", "campinas"], "sp")).toEqual(["sp", "campinas"]);
+  });
+
+  it("remove pelo valor, não pela posição", () => {
+    // Por índice quebraria: a lista muda entre a renderização e o clique.
+    expect(removerFicha(["sp", "campinas", "santos"], "campinas")).toEqual(["sp", "santos"]);
+  });
+
+  it("remover o que não está lá não muda nada", () => {
+    expect(removerFicha(["sp"], "recife")).toEqual(["sp"]);
+  });
+
+  it("não sugere o que já é ficha", () => {
+    const achadas = [
+      { valor: "sp", rotulo: "São Paulo" },
+      { valor: "santos", rotulo: "Santos" },
+    ];
+
+    expect(sugestoesRestantes(achadas, ["sp"])).toEqual([{ valor: "santos", rotulo: "Santos" }]);
+  });
+
+  it("sem nada escolhido, sugere tudo", () => {
+    const achadas = [{ valor: "sp", rotulo: "São Paulo" }];
+
+    expect(sugestoesRestantes(achadas, [])).toEqual(achadas);
   });
 });

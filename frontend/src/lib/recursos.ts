@@ -111,11 +111,25 @@ export type Criterios = {
   provider_slugs: string[];
 };
 
+/**
+ * Quanto trabalho os critérios dariam, antes de criar qualquer coisa.
+ *
+ * `max_jobs` vem do servidor de propósito: o limite é variável de ambiente, e um número fixo
+ * aqui viraria mentira no primeiro deploy que o mudasse.
+ */
+export type Previsao = {
+  cities: number;
+  categories: number;
+  providers: number;
+  estimated_jobs: number;
+  max_jobs: number;
+};
+
 export const prever = (criteria: Criterios) =>
-  apiFetch<{ cities: number; categories: number; providers: number; estimated_jobs: number }>(
-    "/discovery/searches/preview/",
-    { method: "POST", body: JSON.stringify({ criteria }) },
-  );
+  apiFetch<Previsao>("/discovery/searches/preview/", {
+    method: "POST",
+    body: JSON.stringify({ criteria }),
+  });
 
 export const criarBusca = (name: string, criteria: Criterios) =>
   apiFetch<Busca>("/discovery/searches/", {

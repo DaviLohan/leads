@@ -6,6 +6,7 @@ Busca é dado da organização (ADR-0007), então tudo passa por `TenantViewSet`
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.db import models
 from django.db.models.functions import Coalesce
 from rest_framework import status, viewsets
@@ -124,6 +125,10 @@ class SearchViewSet(TenantViewSet):
                 "estimated_jobs": len(cidades)
                 * len(criterios.validated_data["category_ids"])
                 * len(criterios.validated_data["provider_slugs"]),
+                # O limite vai junto para que a tela possa impedir o envio sem saber o número
+                # de cor: ele é variável de ambiente, e um 500 fixo no frontend viraria mentira
+                # no primeiro deploy que o mudasse.
+                "max_jobs": settings.DISCOVERY_MAX_JOBS_PER_SEARCH,
             }
         )
 

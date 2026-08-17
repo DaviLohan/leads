@@ -6,6 +6,7 @@ objeto existe.
 """
 
 import pytest
+from django.conf import settings
 
 from apps.accounts.models import Role
 from apps.core.models import AuditLog
@@ -128,6 +129,10 @@ class TestPreview:
             "categories": 1,
             "providers": 1,
             "estimated_jobs": 2,
+            # O limite vem junto para a tela poder impedir o envio sem saber o número de cor:
+            # ele é variável de ambiente, e um 500 fixo no frontend viraria mentira no
+            # primeiro deploy que o mudasse.
+            "max_jobs": settings.DISCOVERY_MAX_JOBS_PER_SEARCH,
         }
         assert Search.objects.count() == 0
 

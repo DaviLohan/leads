@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { Selecao } from "@/components/ui/campo";
+import { Selecao, SelecaoMultipla } from "@/components/ui/campo";
 
 /**
  * O contrato de marcação do gatilho fechado.
@@ -64,5 +64,49 @@ describe("Selecao fechada", () => {
 
     expect(html).not.toContain('role="listbox"');
     expect(html).not.toContain("Padarias");
+  });
+});
+
+describe("SelecaoMultipla", () => {
+  it("rende uma ficha por escolhido, com o nome que veio do servidor", () => {
+    // Com busca remota o rótulo não está em `opcoes` — só em `rotulosConhecidos`. Sem ele a
+    // ficha mostraria o UUID.
+    const html = render(
+      <SelecaoMultipla
+        rotulo="Municípios"
+        opcoes={[]}
+        valores={["a", "b"]}
+        aoMudar={() => {}}
+        rotulosConhecidos={{ a: "São Paulo", b: "Campinas" }}
+      />,
+    );
+
+    expect(html).toContain("São Paulo");
+    expect(html).toContain("Campinas");
+  });
+
+  it("cada remover tem nome acessível próprio", () => {
+    // Três "X" idênticos num campo é o tipo de botão que só funciona com o mouse.
+    const html = render(
+      <SelecaoMultipla
+        rotulo="Municípios"
+        opcoes={[]}
+        valores={["a"]}
+        aoMudar={() => {}}
+        rotulosConhecidos={{ a: "Santos" }}
+      />,
+    );
+
+    expect(html).toContain('title="Remover Santos"');
+  });
+
+  it("é um combobox fechado enquanto ninguém mexe", () => {
+    const html = render(
+      <SelecaoMultipla rotulo="Municípios" opcoes={[]} valores={[]} aoMudar={() => {}} />,
+    );
+
+    expect(html).toContain('role="combobox"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).not.toContain('role="listbox"');
   });
 });

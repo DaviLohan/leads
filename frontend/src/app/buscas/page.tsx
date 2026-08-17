@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 
 import { Casca } from "@/components/casca";
 import { Botao } from "@/components/ui/botao";
-import { Selecao } from "@/components/ui/campo";
+import { Selecao, SelecaoMultipla } from "@/components/ui/campo";
 import { CabecalhoDaPagina } from "@/components/ui/cabecalho";
 import { Etiqueta } from "@/components/ui/etiqueta";
 import { Erro, EsqueletoDeTabela, Vazio } from "@/components/ui/superficie";
@@ -18,8 +18,10 @@ import {
   listarBuscas,
   listarCategorias,
   listarEstados,
+  listarMunicipios,
   prever,
   type Criterios,
+  type Previsao,
 } from "@/lib/recursos";
 import type { Busca, Categoria, Estado, JobDeBusca } from "@/lib/tipos";
 
@@ -108,13 +110,17 @@ function NovaBusca({
   aoCriar: () => void;
 }) {
   const [uf, setUf] = useState("");
+  const [municipios, setMunicipios] = useState<string[]>([]);
+  const [nomesDeMunicipio, setNomesDeMunicipio] = useState<Record<string, string>>({});
   const [categoria, setCategoria] = useState<string>("");
-  const [previsao, setPrevisao] = useState<number | null>(null);
+  const [previsao, setPrevisao] = useState<Previsao | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  // `resolve_cities` **soma** `uf` e `city_ids`. Mandar os dois devolveria o estado inteiro, e
+  // o recorte não recortaria nada — em silêncio, que é o pior jeito de falhar. Ou um, ou outro.
   const criterios = (): Criterios => ({
-    uf: [uf],
+    ...(municipios.length ? { city_ids: municipios } : { uf: [uf] }),
     category_ids: [categoria],
     provider_slugs: ["osm-overpass"],
   });
@@ -134,15 +140,35 @@ function NovaBusca({
     }
     let valido = true;
     prever(criterios())
-      .then((r) => valido && setPrevisao(r.estimated_jobs))
+      .then((r) => valido && setPrevisao(r))
       .catch(() => valido && setPrevisao(null));
     return () => {
       valido = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uf, categoria]);
+  }, [uf, categoria, municipios]);
+
+  // Trocar de estado larga os municípios: senão fica cidade de outro estado presa no critério,
+  // e a busca sai de um lugar que a tela não está mais mostrando.
+  function trocarEstado(novo: string) {
+    setUf(novo);
+    setMunicipios([]);
+  }
+
+  async function procurarMunicipio(termo: string) {
+    if (!uf) return [];
+    // Busca no servidor porque a lista não cabe numa página: são 5.571 municípios e a API
+    // pagina em 200 — em MG (853) e SP (645) filtrar no cliente esconderia a maioria.
+    const pagina = await listarMunicipios({ uf, q: termo });
+    setNomesDeMunicipio((atual) => ({
+      ...atual,
+      ...Object.fromEntries(pagina.results.map((m) => [m.id, m.name])),
+    }));
+    return pagina.results.map((m) => ({ valor: m.id, rotulo: m.name }));
+  }
 
   const nomeDaCategoria = categorias.find((c) => c.id === categoria)?.name ?? "";
+  const acimaDoLimite = previsao !== null && previsao.estimated_jobs > previsao.max_jobs;
 
   return (
     <form
@@ -151,7 +177,11 @@ function NovaBusca({
         setErro(null);
         setEnviando(true);
         try {
-          await criarBusca(`${nomeDaCategoria} em ${uf}`, criterios());
+          const onde = municipios.length
+            ? municipios.map((id) => nomesDeMunicipio[id] ?? id).join(", ")
+            : uf;
+          await criarBusca(`${nomeDaCategoria} em ${onde}`, criterios());
+          setMunicipios([]);
           aoCriar();
         } catch (e) {
           setErro(errorMessage(e, "Não foi possível criar a busca."));
@@ -166,10 +196,23 @@ function NovaBusca({
           rotulo="Estado"
           className="w-56"
           valor={uf}
-          aoMudar={setUf}
+          aoMudar={trocarEstado}
           required
           vazio="Escolha…"
           opcoes={estados.map((estado) => ({ valor: estado.uf, rotulo: estado.name }))}
+        />
+
+        <SelecaoMultipla
+          rotulo="Municípios"
+          className="min-w-72 flex-1"
+          valores={municipios}
+          aoMudar={setMunicipios}
+          aoBuscar={procurarMunicipio}
+          rotulosConhecidos={nomesDeMunicipio}
+          opcoes={[]}
+          disabled={!uf}
+          espaco={uf ? "Digite para procurar" : "Escolha o estado primeiro"}
+          ajuda="Vazio = estado inteiro"
         />
 
         <Selecao
@@ -181,22 +224,45 @@ function NovaBusca({
           opcoes={categorias.map((c) => ({ valor: c.id, rotulo: c.name }))}
         />
 
-        <Botao type="submit" disabled={enviando || !uf || !categoria}>
+        <Botao type="submit" disabled={enviando || !uf || !categoria || acimaDoLimite}>
           {enviando ? "Criando…" : "Criar busca"}
         </Botao>
       </div>
 
-      {previsao !== null && (
-        <p className="text-tinta-fraca text-apoio mt-4">
-          Vai varrer <span className="dados text-tinta font-semibold">{previsao}</span>{" "}
-          {previsao === 1 ? "município" : "municípios"}.
-          {previsao > 100 && (
-            <span className="text-lacuna"> Isso leva horas — considere recortar.</span>
-          )}
-        </p>
-      )}
+      {/* Uma mensagem só. Antes o aviso âmbar e o erro vermelho diziam a mesma coisa — e o
+          vermelho só aparecia depois de clicar, para dizer o que a tela já sabia. */}
+      {previsao !== null && <Alcance previsao={previsao} />}
       {erro && <Erro mensagem={erro} className="mt-3" />}
     </form>
+  );
+}
+
+/**
+ * O alcance da busca, numa frase só, com o tom mudando conforme o caso.
+ *
+ * Impedimento é vermelho e diz o que fazer; alcance grande é âmbar e avisa do custo; o resto é
+ * só a contagem. Antes eram duas mensagens dizendo o mesmo, e a decisiva só chegava depois de
+ * clicar — para informar o que a tela já sabia.
+ */
+function Alcance({ previsao }: { previsao: Previsao }) {
+  const { estimated_jobs: varreduras, max_jobs: limite } = previsao;
+
+  if (varreduras > limite) {
+    return (
+      <p className="text-perdido text-apoio mt-4">
+        Isso daria <span className="dados font-semibold">{varreduras}</span> varreduras, e o limite
+        é <span className="dados font-semibold">{limite}</span> por busca. Escolha alguns municípios
+        acima.
+      </p>
+    );
+  }
+
+  return (
+    <p className="text-tinta-fraca text-apoio mt-4">
+      Vai varrer <span className="dados text-tinta font-semibold">{varreduras}</span>{" "}
+      {varreduras === 1 ? "município" : "municípios"}.
+      {varreduras > 100 && <span className="text-lacuna"> Isso leva horas.</span>}
+    </p>
   );
 }
 

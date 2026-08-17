@@ -7,7 +7,7 @@ import { Botao } from "@/components/ui/botao";
 import { Campo, Marcador, ParDeCampos, Selecao } from "@/components/ui/campo";
 import { listarCategorias, listarEstados, listarMunicipios } from "@/lib/recursos";
 import type { FiltrosDeEmpresa } from "@/lib/recursos";
-import type { Categoria, Estado, Municipio } from "@/lib/tipos";
+import type { Categoria, Estado } from "@/lib/tipos";
 
 /**
  * O painel de filtros da tela Empresas.
@@ -33,7 +33,7 @@ export function PainelDeFiltros({
 }) {
   const [form, setForm] = useState<FiltrosDeEmpresa>(valores);
   const [estados, setEstados] = useState<Estado[]>([]);
-  const [municipios, setMunicipios] = useState<Municipio[]>([]);
+  const [nomesDeCidade, setNomesDeCidade] = useState<Record<string, string>>({});
   const [categorias, setCategorias] = useState<Categoria[]>([]);
 
   useEffect(() => setForm(valores), [valores]);
@@ -43,14 +43,18 @@ export function PainelDeFiltros({
     listarCategorias().then((p) => setCategorias(p.results));
   }, []);
 
-  // Município só faz sentido depois do estado: 5.571 numa lista só é inutilizável.
-  useEffect(() => {
-    if (!form.uf) {
-      setMunicipios([]);
-      return;
-    }
-    listarMunicipios({ uf: form.uf }).then((p) => setMunicipios(p.results));
-  }, [form.uf]);
+  // Município só faz sentido depois do estado: 5.571 numa lista só é inutilizável. E a busca
+  // é no **servidor**, não numa lista carregada de uma vez: a API pagina em 200, e em 10 dos
+  // 27 estados isso escondia a maioria das cidades sem dar erro nenhum.
+  async function procurarCidade(termo: string) {
+    if (!form.uf) return [];
+    const pagina = await listarMunicipios({ uf: form.uf, q: termo });
+    setNomesDeCidade((atual) => ({
+      ...atual,
+      ...Object.fromEntries(pagina.results.map((m) => [m.id, m.name])),
+    }));
+    return pagina.results.map((m) => ({ valor: m.id, rotulo: m.name }));
+  }
 
   function definir(campo: keyof FiltrosDeEmpresa, valor: string | boolean | undefined) {
     setForm((atual) => ({ ...atual, [campo]: valor === "" ? undefined : valor, page: undefined }));
@@ -105,13 +109,11 @@ export function PainelDeFiltros({
             rotulo="Cidade"
             valor={form.city ?? ""}
             aoMudar={(escolhido) => definir("city", escolhido)}
+            aoBuscar={form.uf ? procurarCidade : undefined}
             disabled={!form.uf}
             ajuda={!form.uf ? "Escolha o estado primeiro" : undefined}
             vazio={form.uf ? "Todas as cidades" : "—"}
-            opcoes={municipios.map((municipio) => ({
-              valor: municipio.id,
-              rotulo: municipio.name,
-            }))}
+            opcoes={Object.entries(nomesDeCidade).map(([valor, rotulo]) => ({ valor, rotulo }))}
           />
         </Grupo>
 

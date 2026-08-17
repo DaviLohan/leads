@@ -85,7 +85,52 @@ class TestRecusas:
         """
         busca = criar_busca(city_ids=[str(londrina.id), str(maringa.id)])
 
-        with pytest.raises(SearchPlanError, match="acima do teto"):
+        with pytest.raises(SearchPlanError, match="o limite é"):
             plan_search(busca)
 
         assert SearchJob.objects.count() == 0
+
+    @override_settings(DISCOVERY_MAX_JOBS_PER_SEARCH=1)
+    def test_a_recusa_fala_a_lingua_de_quem_usa(self, criar_busca, londrina, maringa):
+        """ "job" e "teto" são palavras nossas. A mensagem chega inteira na tela."""
+        busca = criar_busca(city_ids=[str(londrina.id), str(maringa.id)])
+
+        with pytest.raises(SearchPlanError) as capturado:
+            plan_search(busca)
+
+        assert "jobs" not in str(capturado.value)
+        assert "teto" not in str(capturado.value)
+        assert "varreduras" in str(capturado.value)
+
+
+class TestRecorte:
+    """Escolher municípios é o que torna São Paulo (645) e Minas (853) buscáveis.
+
+    Sem isto o produto recusava os dois maiores mercados do país e mandava "recortar por
+    município" — coisa que a tela não oferecia.
+    """
+
+    @override_settings(DISCOVERY_MAX_JOBS_PER_SEARCH=1)
+    def test_recortar_por_municipio_escapa_do_limite(self, criar_busca, londrina, maringa):
+        """O estado inteiro é recusado; os municípios escolhidos passam. É a tela de Buscas."""
+        estado_inteiro = criar_busca(city_ids=[], uf=["PR"])
+        with pytest.raises(SearchPlanError):
+            plan_search(estado_inteiro)
+
+        recortada = criar_busca(city_ids=[str(londrina.id)], uf=[])
+        jobs = plan_search(recortada)
+
+        assert [j.city for j in jobs] == [londrina]
+
+    @override_settings(DISCOVERY_MAX_JOBS_PER_SEARCH=1)
+    def test_mandar_uf_junto_anula_o_recorte(self, criar_busca, londrina, maringa):
+        """`resolve_cities` **soma** `uf` e `city_ids`, não intersecta.
+
+        Quem monta os critérios tem que escolher um dos dois: mandar os dois traz o estado
+        inteiro de volta, e o recorte deixa de recortar **sem erro nenhum** — que é como isto
+        viraria um bug difícil de achar. O teste existe para travar essa armadilha.
+        """
+        busca = criar_busca(city_ids=[str(londrina.id)], uf=["PR"])
+
+        with pytest.raises(SearchPlanError):
+            plan_search(busca)
