@@ -7,7 +7,7 @@ psycopg[binary]>=3.2,<4.0
 dj-database-url>=2.2,<3.0
 # Telefone brasileiro em E.164. DDD, 8 x 9 dígitos, fixo x móvel e portabilidade têm
 # armadilha demais para código próprio — e é o identificador que a supressão da LGPD usa.
-phonenumbers>=8.13,<10.0
+phonenumbers>=9.0.36,<10.0
 celery>=5.4,<6.0
 redis>=5.1,<6.0
 django-redis>=5.4,<6.0
